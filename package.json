@@ -1,0 +1,30 @@
+{
+  "name": "qr-menu-card",
+  "version": "1.0.0",
+  "description": "3D QR code menu card system: table standees -> live browser menu -> kitchen dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Akash12Tyagi/qr.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Akash12Tyagi/qr/issues"
+  },
+  "homepage": "https://github.com/Akash12Tyagi/qr#readme",
+  "dependencies": {
+    "express": "^4.22.3",
+    "qrcode": "^1.5.4",
+    "three": "^0.160.0"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  }
+}

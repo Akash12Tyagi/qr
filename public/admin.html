@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e0b09">
+  <title>Kitchen Console</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <!-- Login -->
+  <section class="login" id="login">
+    <form class="login-card" id="loginForm">
+      <div class="logo-3d" aria-hidden="true"><span>🔥</span></div>
+      <h1 class="display">Kitchen Console</h1>
+      <p class="muted">Enter the staff PIN to manage orders, menu and table QR codes.</p>
+      <input class="input pin" id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••" maxlength="12" required aria-label="Staff PIN">
+      <button class="btn btn-primary" type="submit">Unlock</button>
+      <p class="hint muted">Demo PIN is <code>1234</code> (set <code>ADMIN_PIN</code> env var in production).</p>
+    </form>
+  </section>
+
+  <div class="shell hidden" id="shell">
+    <aside class="side">
+      <a class="side-brand" href="/" title="Home"><span class="flame">🔥</span><span class="display" id="sideName">QR Menu</span></a>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="live" aria-selected="true"><span>📡</span><b>Live orders</b><em class="count" id="liveCount"></em></button>
+        <button role="tab" data-tab="menu"><span>📖</span><b>Menu</b></button>
+        <button role="tab" data-tab="tables"><span>🔳</span><b>Tables &amp; QR</b></button>
+        <button role="tab" data-tab="insights"><span>📈</span><b>Insights</b></button>
+        <button role="tab" data-tab="settings"><span>⚙️</span><b>Settings</b></button>
+      </nav>
+      <div class="side-foot">
+        <span class="conn" id="conn"><i></i><span>Connecting…</span></span>
+        <button class="btn btn-sm btn-ghost" id="soundBtn" aria-pressed="true">🔔 Sound on</button>
+        <button class="btn btn-sm btn-ghost" id="logoutBtn">Lock</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <!-- LIVE -->
+      <section class="panel" id="tab-live">
+        <header class="panel-head">
+          <div><h1 class="display">Live orders</h1><p class="muted">New orders appear instantly. Tap a card's button to move it forward.</p></div>
+          <div class="head-actions"><a class="btn btn-sm" href="/menu?t=T1" target="_blank" rel="noopener">Open guest view ↗</a></div>
+        </header>
+        <div class="calls" id="calls"></div>
+        <div class="board" id="board">
+          <div class="col" data-col="placed"><h3><i style="--c:var(--info)"></i>New <span class="n"></span></h3><div class="cards"></div></div>
+          <div class="col" data-col="kitchen"><h3><i style="--c:var(--warn)"></i>In the kitchen <span class="n"></span></h3><div class="cards"></div></div>
+          <div class="col" data-col="ready"><h3><i style="--c:var(--ok)"></i>Ready to serve <span class="n"></span></h3><div class="cards"></div></div>
+          <div class="col" data-col="done"><h3><i style="--c:var(--faint)"></i>Served / closed <span class="n"></span></h3><div class="cards"></div></div>
+        </div>
+      </section>
+
+      <!-- MENU -->
+      <section class="panel hidden" id="tab-menu">
+        <header class="panel-head">
+          <div><h1 class="display">Menu</h1><p class="muted">Changes go live on every guest’s phone immediately. Toggle a dish off when it sells out.</p></div>
+          <div class="head-actions">
+            <button class="btn btn-sm" id="addCatBtn">+ Category</button>
+            <button class="btn btn-sm btn-primary" id="addItemBtn">+ Dish</button>
+          </div>
+        </header>
+        <div class="menu-search"><input class="input" id="menuSearch" type="search" placeholder="Filter dishes…"></div>
+        <div id="menuList"></div>
+      </section>
+
+      <!-- TABLES -->
+      <section class="panel hidden" id="tab-tables">
+        <header class="panel-head">
+          <div><h1 class="display">Tables &amp; QR codes</h1><p class="muted">Each table gets a unique QR. Orders placed from it are tagged with that table automatically.</p></div>
+          <div class="head-actions">
+            <select class="input input-sm" id="printStyle" aria-label="Print style">
+              <option value="standee">Acrylic standee (A6)</option>
+              <option value="tent">Folded table tent</option>
+              <option value="card">Flat card grid</option>
+            </select>
+            <button class="btn btn-sm" id="printAll">🖨 Print all</button>
+            <button class="btn btn-sm btn-primary" id="addTableBtn">+ Table</button>
+          </div>
+        </header>
+        <p class="base-note muted" id="baseNote"></p>
+        <div class="tables-grid" id="tablesGrid"></div>
+      </section>
+
+      <!-- INSIGHTS -->
+      <section class="panel hidden" id="tab-insights">
+        <header class="panel-head"><div><h1 class="display">Today at a glance</h1><p class="muted">Excludes cancelled orders. Resets at midnight.</p></div>
+          <div class="head-actions"><button class="btn btn-sm" id="refreshStats">↻ Refresh</button></div></header>
+        <div class="kpis" id="kpis"></div>
+        <div class="insight-grid">
+          <div class="card-box"><h3>Revenue by hour</h3><div id="hourChart" class="chart"></div></div>
+          <div class="card-box"><h3>Top dishes</h3><ol class="top" id="topList"></ol></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="panel hidden" id="tab-settings">
+        <header class="panel-head"><div><h1 class="display">Settings</h1><p class="muted">Your brand on every menu and printed card.</p></div></header>
+        <form class="settings card-box" id="settingsForm">
+          <label class="field"><span>Restaurant name</span><input class="input" name="name" maxlength="60" required></label>
+          <label class="field"><span>Tagline</span><input class="input" name="tagline" maxlength="120"></label>
+          <div class="row3">
+            <label class="field"><span>Currency</span><input class="input" name="currency" maxlength="4"></label>
+            <label class="field"><span>GST %</span><input class="input" name="taxRate" type="number" min="0" max="50" step="0.5"></label>
+            <label class="field"><span>Service %</span><input class="input" name="serviceCharge" type="number" min="0" max="50" step="0.5"></label>
+          </div>
+          <div class="row3">
+            <label class="field"><span>Accent colour</span><input class="input color" name="accent" type="color"></label>
+            <label class="field"><span>Opening hours</span><input class="input" name="hours" maxlength="60"></label>
+            <label class="field"><span>Wi-Fi</span><input class="input" name="wifi" maxlength="80"></label>
+          </div>
+          <label class="field"><span>Public URL for QR codes</span><input class="input" name="publicUrl" type="url" placeholder="https://menu.yourcafe.in  (leave blank to use this server’s address)"></label>
+          <div class="settings-actions">
+            <button class="btn btn-primary" type="submit">Save changes</button>
+            <button class="btn btn-danger" type="button" id="resetBtn">Reset demo data</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- Dialog -->
+  <dialog class="dlg" id="dlg">
+    <form method="dialog" class="dlg-inner" id="dlgForm"></form>
+  </dialog>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>

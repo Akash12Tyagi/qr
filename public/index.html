@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e0b09">
+  <title>QR Menu Cards</title>
+  <meta name="description" content="Printed table QR standees that open a live, orderable menu in any phone browser — no app download.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/landing.css">
+  <script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.min.js", "three/addons/": "/vendor/three/examples/jsm/" } }</script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="logo"><span class="flame">🔥</span><span class="display">QR&nbsp;Menu</span></a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="/admin" class="btn btn-sm">Kitchen console</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-canvas" id="heroCanvas" aria-hidden="true">
+      <div class="fallback-card"><div class="fc-inner"><b class="display">Scan me</b><img id="fallbackQr" alt=""><span>Table 1</span></div></div>
+    </div>
+    <div class="hero-copy">
+      <span class="eyebrow"><i></i> Live demo · <span id="restName">Ember &amp; Saffron</span></span>
+      <h1 class="display">The menu lives<br>on the <em>table.</em></h1>
+      <p class="lead">A printed standee with a QR code. Guests point their camera, the menu opens in the browser, and the order lands in your kitchen — <strong>no app, no waiting for the waiter.</strong></p>
+      <div class="cta">
+        <a class="btn btn-primary" href="/menu?t=T1">Try the guest menu →</a>
+        <a class="btn" href="/admin">Open kitchen console</a>
+      </div>
+      <p class="hint muted">Tip: open the console in one tab and the menu in another — orders appear live.</p>
+    </div>
+    <div class="scroll-cue" aria-hidden="true"><span></span></div>
+  </header>
+
+  <section class="how" id="how">
+    <h2 class="display sec-h">From table to kitchen in <em>four taps</em></h2>
+    <ol class="steps">
+      <li><span class="n">01</span><div class="ico">📷</div><h3>Scan</h3><p>Any phone camera reads the table’s QR. It encodes the table number, so you always know where to serve.</p></li>
+      <li><span class="n">02</span><div class="ico">📖</div><h3>Browse</h3><p>A fast, beautiful menu with search, veg filters, spice levels and a 3D view of every plate.</p></li>
+      <li><span class="n">03</span><div class="ico">🛒</div><h3>Order</h3><p>Add dishes, leave kitchen notes, see the GST-inclusive total and send it — prices are verified on the server.</p></li>
+      <li><span class="n">04</span><div class="ico">🛎️</div><h3>Track</h3><p>Live status from “accepted” to “served”. Need water or the bill? One tap pings the floor staff.</p></li>
+    </ol>
+  </section>
+
+  <section class="features" id="features">
+    <h2 class="display sec-h">Everything a busy floor needs</h2>
+    <div class="fgrid">
+      <article class="f big"><div class="ico">⚡</div><h3>Real-time kitchen board</h3><p>Orders stream into a kanban — New, In the kitchen, Ready, Served — with a chime, waiter call alerts and one-tap status updates that sync to the guest’s phone instantly.</p></article>
+      <article class="f"><div class="ico">🔳</div><h3>Print-ready QR standees</h3><p>A6 acrylic inserts, folded table tents or card grids. High error-correction codes with your brand badge.</p></article>
+      <article class="f"><div class="ico">🚫</div><h3>86 a dish in a second</h3><p>Toggle “sold out” and it updates on every phone. No reprinting menus, ever.</p></article>
+      <article class="f"><div class="ico">🧊</div><h3>3D plated dishes</h3><p>No food photos yet? Every dish renders as an interactive 3D plate.</p></article>
+      <article class="f"><div class="ico">📈</div><h3>Daily insights</h3><p>Revenue by hour, top dishes and average ticket — at a glance.</p></article>
+      <article class="f"><div class="ico">🌗</div><h3>Made for phones</h3><p>Light/dark themes, accessible, thumb-friendly, works on slow restaurant Wi-Fi.</p></article>
+    </div>
+  </section>
+
+  <section class="demo">
+    <div class="demo-card">
+      <div class="demo-qr"><img id="demoQr" alt="QR code opening the demo menu for Table 1"></div>
+      <div>
+        <h2 class="display">Scan it with your phone</h2>
+        <p class="muted">This is the real QR for <b>Table 1</b>. If your phone is on the same network as this server, it opens the live menu. <span id="lanHint"></span></p>
+        <div class="cta">
+          <a class="btn btn-primary" href="/menu?t=T1">Open menu</a>
+          <a class="btn" href="/print?style=standee">Preview print cards</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer muted">Built with Node, Express, Three.js &amp; a lot of masala chai ☕</footer>
+
+  <script type="module" src="/js/landing.js"></script>
+</body>
+</html>
