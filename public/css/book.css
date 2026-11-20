@@ -149,32 +149,38 @@ html[data-view='book'] .embers { display: none; }
 
 /* menu rows */
 .rows { display: grid; gap: 3.4cqw; }
-.bk-row { position: relative; cursor: pointer; padding: 1cqw 1.4cqw; margin: 0 -1.4cqw; border-radius: 1.4cqw; transition: background .25s; outline: none; }
+.bk-row { position: relative; display: grid; grid-template-columns: 13cqw 1fr; gap: 3.2cqw; align-items: start; cursor: pointer; padding: 1cqw 1.4cqw; margin: 0 -1.4cqw; border-radius: 1.4cqw; transition: background .25s; outline: none; }
 .bk-row:hover, .bk-row:focus-visible { background: rgba(17, 17, 16, .045); }
 .bk-row:focus-visible { box-shadow: 0 0 0 2px var(--ink); }
+.bk-thumb { width: 13cqw; height: 13cqw; margin-top: .4cqw; border-radius: 50%; object-fit: cover; filter: drop-shadow(0 1.2cqw 1.2cqw rgba(60, 30, 10, .22)); transition: transform .5s var(--rebound); }
+.bk-row:hover .bk-thumb { transform: rotate(-14deg) scale(1.06); }
+.bk-main { min-width: 0; }
 .bk-line { display: flex; align-items: baseline; gap: 1.8cqw; }
-.bk-line .diet { width: 3cqw; height: 3cqw; min-width: 10px; min-height: 10px; transform: translateY(.3cqw); }
 .bk-name { font: 600 4.6cqw/1.2 var(--display); letter-spacing: -.01em; }
 .dots { flex: 1; min-width: 4cqw; border-bottom: 1.5px dotted rgba(17, 17, 16, .32); transform: translateY(-.9cqw); }
 .bk-price { font: 600 4.4cqw/1 var(--display); color: var(--ember-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bk-desc {
-  margin: .8cqw 0 1.4cqw 4.8cqw; font: italic 400 3.35cqw/1.32 var(--serif-body); color: var(--ink-dim);
+  margin: .8cqw 0 1.2cqw; font: italic 400 3.3cqw/1.32 var(--serif-body); color: var(--ink-dim);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.bk-meta { display: flex; align-items: center; gap: 2.4cqw; margin-left: 4.8cqw; min-height: 8.4cqw; font: 600 2.3cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+.bk-meta { display: flex; align-items: center; gap: 2.2cqw; min-height: 8.4cqw; font: 600 2.3cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+.bk-meta .diet { width: 2.8cqw; height: 2.8cqw; min-width: 10px; min-height: 10px; }
 .bk-meta .bk-pick, .legend .bk-pick { color: var(--ember-ink); }
-.bk-meta .chili { letter-spacing: -.25em; font-size: 2.8cqw; }
+.bk-meta .bk-pick::before, .legend .bk-pick::before { content: '✦ '; }
+.chili { display: inline-flex; gap: .2cqw; color: #c2381a; }
+.chili-ico { width: 2.8cqw; height: 2.8cqw; min-width: 9px; min-height: 9px; fill: currentColor; }
+.legend .chili-ico { color: #c2381a; }
 .bk-ctl { margin-left: auto; }
 .bk-ctl .add, .bk-ctl .stepper-sm {
   position: static; transform: none; left: auto; bottom: auto; box-shadow: none;
-  height: 8.4cqw; min-height: 28px; border-radius: 999px; font: 700 2.5cqw/1 var(--mono); letter-spacing: .12em;
+  height: 8.4cqw; min-height: 30px; border-radius: 999px; font: 700 2.5cqw/1 var(--mono); letter-spacing: .12em;
 }
 .bk-ctl .add { min-width: 17cqw; padding: 0 3cqw; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); transition: background .2s, color .2s, transform .15s; }
 .bk-ctl .add:hover { background: var(--ink); color: var(--paper); }
 .bk-ctl .add:active { transform: scale(.94); }
 .bk-ctl .add[disabled] { border-color: rgba(17, 17, 16, .2); color: rgba(17, 17, 16, .4); background: none; }
 .bk-ctl .stepper-sm { min-width: 22cqw; background: var(--ink); color: var(--paper); }
-.bk-ctl .stepper-sm button { width: 7cqw; min-width: 24px; font-size: 3.6cqw; }
+.bk-ctl .stepper-sm button { width: 7cqw; min-width: 26px; font-size: 3.6cqw; }
 .bk-ctl .stepper-sm output { font-size: 3cqw; }
 .bk-row.sold .bk-name, .bk-row.sold .bk-price { text-decoration: line-through; text-decoration-thickness: 1px; opacity: .55; }
 .stamp {
@@ -184,6 +190,7 @@ html[data-view='book'] .embers { display: none; }
 }
 
 /* contents */
+.legend .diet { transform: none; }
 .toc { list-style: none; margin: 0 0 5cqw; padding: 0; display: grid; gap: 1.2cqw; }
 .toc button { width: 100%; display: flex; align-items: baseline; gap: 2cqw; padding: 1.6cqw 1cqw; margin: 0 -1cqw; border: 0; border-radius: 1.2cqw; background: none; color: var(--ink); text-align: left; transition: background .2s; }
 .toc button:hover { background: rgba(17, 17, 16, .05); }
@@ -199,12 +206,13 @@ html[data-view='book'] .embers { display: none; }
 /* framed plate print (left pages) */
 .print { margin: 0; display: grid; justify-items: center; gap: 3.4cqw; }
 .print-frame {
+  display: block; border: 0; cursor: zoom-in; transition: transform .6s var(--rebound), box-shadow .6s;
   width: 60cqw; padding: 3cqw; background: linear-gradient(145deg, #2a2926, var(--frame) 40%, #0d0d0c);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), 0 1px 1px rgba(0, 0, 0, .3), 0 4cqw 7cqw -2.5cqw rgba(30, 15, 5, .55);
 }
 .print-mat { padding: 6cqw; background: var(--paper); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06), inset .4cqw .8cqw 1.6cqw rgba(0, 0, 0, .16); }
-.print-art { width: 100%; aspect-ratio: 1 / 1.08; font-size: 8.4cqw; }
-.print-art .emo { font-size: 2.6em; }
+.print-frame:hover { transform: translateY(-1cqw) rotate(-.6deg); }
+.print-img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
 .print figcaption { display: grid; gap: 1cqw; }
 .print .mono { font: 600 2.2cqw/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-dim); }
 .print em { font: italic 400 4.4cqw/1.15 var(--display); }
@@ -308,10 +316,6 @@ blockquote { margin: 5cqw 4cqw 0; font: italic 400 3.6cqw/1.45 var(--serif-body)
 .bk-hint .mouse { width: 18px; height: 28px; border: 1.5px solid rgba(243, 230, 212, .6); border-radius: 10px; position: relative; }
 .bk-hint .mouse i { position: absolute; left: 50%; top: 5px; width: 2px; height: 6px; margin-left: -1px; border-radius: 2px; background: var(--foil-2); animation: wheel 1.8s var(--lift) infinite; }
 @keyframes wheel { 60% { transform: translateY(9px); opacity: 0; } 61% { transform: none; opacity: 0; } }
-html[data-view='book'] body.has-cart .bk-hint { opacity: 0; }
-html[data-view='book'] .fab-wrap { bottom: calc(14px + env(safe-area-inset-bottom)); right: 14px; }
-html[data-view='book'] .fab { width: 48px; height: 48px; font-size: 21px; }
-html[data-view='book'] body.has-cart .fab-wrap { bottom: calc(92px + env(safe-area-inset-bottom)); }
 .ghost-btn svg { width: 15px; height: 15px; }
 html[data-view='book'] .cartbar { box-shadow: 0 20px 50px -10px rgba(0, 0, 0, .7); }
 
@@ -361,3 +365,51 @@ html[data-view='book'] .cartbar { box-shadow: 0 20px 50px -10px rgba(0, 0, 0, .7
 .pairing span { font: 600 3.6cqw/1 var(--display); color: var(--ember-ink); }
 .pairing:hover { border-color: var(--ink); }
 .pair-note { max-width: 62cqw; margin: 1cqw 0 0; font: italic 400 3.2cqw/1.4 var(--serif-body); color: var(--ink-dim); }
+
+/* silk bookmark ribbon hanging from the spine */
+.ribbon {
+  position: absolute; left: calc(50% + 12px); bottom: -30px; width: 12px; height: 48px; transform: translateZ(1px); pointer-events: none;
+  background: linear-gradient(90deg, #6e1210, #b8261d 45%, #e0574a 55%, #8f1a14);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%);
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .45)); transform-origin: 50% 0; animation: sway 6s ease-in-out infinite;
+}
+@keyframes sway { 50% { transform: translateZ(1px) rotate(2.5deg); } }
+
+/* bottom dock: caption + page arrows (in the spirit of "you are walking past") */
+.bk-dock {
+  position: fixed; z-index: 26; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 0 16px;
+  max-width: 720px; margin: 0 auto; color: #f3e6d4; transition: bottom .45s var(--reveal), opacity .8s var(--reveal);
+}
+html[data-view='book'] body.has-cart .bk-dock { bottom: calc(92px + env(safe-area-inset-bottom)); }
+.bk-cap { text-align: center; min-width: 0; }
+.bk-cap .k { display: block; font: 600 10px/1.2 var(--mono); letter-spacing: .24em; text-transform: uppercase; color: rgba(231, 198, 111, .75); }
+.bk-cap b { display: block; margin: 3px 0 2px; font: italic 500 clamp(18px, 4.6vw, 24px)/1.1 var(--display); color: #f8ecd9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-cap small { display: block; font: 600 10px/1.2 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: rgba(243, 230, 212, .55); }
+.arrow-btn {
+  width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid rgba(243, 230, 212, .3); background: rgba(20, 13, 9, .6); color: #f3e6d4; backdrop-filter: blur(8px);
+  transition: transform .3s var(--rebound), background .2s, border-color .2s, opacity .3s;
+}
+.arrow-btn svg { width: 20px; height: 20px; }
+.arrow-btn:hover { background: rgba(60, 40, 25, .8); border-color: rgba(243, 230, 212, .55); transform: scale(1.06); }
+.arrow-btn:active { transform: scale(.94); }
+.arrow-btn[disabled] { opacity: .25; pointer-events: none; }
+.arrow-btn.pulse { animation: nudge 1.8s var(--rebound) infinite; }
+@keyframes nudge { 0%, 60%, 100% { transform: none; } 30% { transform: translateX(5px); } }
+.book-view.intro .bk-dock { opacity: 0; }
+html[data-view='book'] .fab { display: none; }
+html[data-view='book'] .fab-wrap { top: calc(62px + env(safe-area-inset-top)); bottom: auto !important; right: 14px; z-index: 30; }
+html[data-view='book'] .fab-menu { transform-origin: top right; }
+body:not(.has-table) #bkCall { display: none; }
+
+/* phone refinements */
+.single .ribbon { display: none; }
+/* With items in the order, the arrows flank the cart bar on one row (no lost page height). */
+html[data-view='book'] body.has-cart .bk-dock { bottom: calc(19px + env(safe-area-inset-bottom)); max-width: none; pointer-events: none; }
+html[data-view='book'] body.has-cart .bk-dock .arrow-btn { pointer-events: auto; }
+html[data-view='book'] body.has-cart .bk-cap { visibility: hidden; }
+html[data-view='book'] .cartbar { width: min(calc(100% - 156px), 520px); z-index: 27; }
+@media (min-width: 900px) {
+  html[data-view='book'] body.has-cart .bk-dock { max-width: 720px; }
+}

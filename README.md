@@ -13,8 +13,8 @@ Printed table standees with a QR code that open a **live, orderable menu in the 
 **The Menu Book** (`/menu?t=T1`, default view) — the menu as a cinematic, page-turning book:
 - Title sequence: the restaurant's name writes itself in, then the book rises off a walnut table into a warm spotlight (once per visit; skipped with reduced motion)
 - Oxblood book-cloth cover with animated gold foil and a monogram; an endpaper bookplate ("This menu belongs to Table 3")
-- **Scroll to turn pages** (also swipe, ← / → keys, or tap a page edge). Pages bend and catch the light as they lift; the page stack thins as you read
-- Every spread pairs a framed "plate print" (gallery-style frame and mat) with an editorial menu page: chapter numerals, dotted price leaders, chef's picks, spice and prep time, a "Sold out" stamp
+- **Scroll to turn pages** (also swipe, the ← / → buttons, arrow keys, or tap a page edge). On phones the camera visits the **left page, then the right page** of every spread, so going back always reveals the left side Pages bend and catch the light as they lift; the page stack thins as you read
+- Every dish is drawn as an original flat illustration (procedural, `public/js/dishart.js` — no photos or emoji needed); rows show a plated thumbnail, and every spread pairs a framed "plate print" (gallery-style frame and mat) with an editorial menu page: chapter numerals, dotted price leaders, chef's picks, spice and prep time, a "Sold out" stamp
 - Contents page with page numbers, chef's pairing tailpieces on short pages, and a "Fin." colophon to review the order or call the waiter
 - Film grain, dust motes in the light, a gold reading-progress line; text stays razor-sharp at rest
 - Design language follows the reference brief: paper `#f6f4ee`, ink `#111110`, frame `#191917`, small-caps monospace labels, physical easing
@@ -39,7 +39,7 @@ Printed table standees with a QR code that open a **live, orderable menu in the 
 
 **Print studio** (`/print`): A6 acrylic standee inserts (4 per A4), fold-over table tents, or 3×3 card grid — with a 3D on-screen preview and high error-correction QR codes carrying your brand badge.
 
-**Landing page** (`/`): 3D hero scene — wooden table, acrylic standee showing the real Table 1 QR, a floating phone scanning it, drifting ingredients and embers. Lighter render tier on phones; static fallback without WebGL.
+**Landing page** (`/`) — a walkable 3D gallery (Three.js), in the spirit of a gallery-site rotunda: you stand in a bright, curved room and **scroll or drag to walk round**. Each menu chapter opens with a title card; every dish hangs as a framed illustrated print with a museum label in a glowing arched niche. Hover shows a "Look closer" pill; click dollies the camera up to the print and opens a detail card ("Find it in the menu book" deep-links to that chapter). Below: the menu-as-a-book, how it works, and the kitchen features with the live QR. Light editorial design, no emoji; static fallback without WebGL.
 
 ## Quick start
 

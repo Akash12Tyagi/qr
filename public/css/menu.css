@@ -177,4 +177,12 @@ body:not(.has-table) .fab-wrap { display: none; }
   .sheet.open { transform: translate(-50%, 50%); opacity: 1; }
   .sheet::before { display: none; }
 }
-.is-stage.is-3d .dish-art .emo, .is-stage.is-3d .dish-art::before { display: none; }
+.is-stage.is-3d .dish-art img, .is-stage.is-3d .dish-art::before { display: none; }
+.is-stage.is-3d { background: radial-gradient(90% 80% at 50% 30%, #3a2418, #120b07 75%); }
+.is-stage.is-3d .dish-art { background: none; }
+/* text-first details (no emoji) */
+.spice { letter-spacing: .1em; font: 700 10.5px/1 ui-monospace, Menlo, monospace; text-transform: uppercase; color: var(--accent-2); }
+.track-anim span { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; font: 700 30px/1 var(--display); color: var(--accent-ink); background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--glow); }
+.track-anim.off span { background: var(--surface-2); color: var(--danger); box-shadow: none; }
+.steps li i { font: 700 13px/1 var(--display); }
+.chip .diet { width: 12px; height: 12px; }

@@ -1,4 +1,5 @@
 // Shared browser helpers (ES module)
+import { posterUrl } from './dishart.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -56,7 +57,7 @@ export function toast(msg, { error = false, icon, ms = 2600 } = {}) {
   }
   const el = document.createElement('div');
   el.className = `toast${error ? ' err' : ''}`;
-  el.innerHTML = `<span>${esc(icon || (error ? '⚠️' : '✨'))}</span><span>${esc(msg)}</span>`;
+  el.innerHTML = `<span class="t-ico">${esc(icon || (error ? '!' : '✓'))}</span><span>${esc(msg)}</span>`;
   toastHost.appendChild(el);
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, ms);
 }
@@ -69,10 +70,10 @@ export const storage = {
   remove(key) { try { localStorage.removeItem(key); } catch { /* ignore */ } },
 };
 
-/** Returns the HTML for a dish visual: photo if available, otherwise a generated emoji plate. */
-export function dishArt(item, cls = '') {
-  const img = item.image ? `<img src="${esc(item.image)}" alt="" loading="lazy" onerror="this.remove()">` : '';
-  return `<div class="dish-art ${cls}" style="--h:${Number(item.hue) || 30}"><span class="emo" aria-hidden="true">${esc(item.emoji || '🍽️')}</span>${img}</div>`;
+/** Returns the HTML for a dish visual: the restaurant's photo if set, otherwise a generated illustration. */
+export function dishArt(item, cls = '', size = 240) {
+  const src = item.image ? esc(item.image) : posterUrl(item, size, Math.round(size * 1.25));
+  return `<div class="dish-art ${cls}" style="--h:${Number(item.hue) || 30}"><img src="${src}" alt="" loading="lazy"${item.image ? ' onerror="this.remove()"' : ''}></div>`;
 }
 
 export function dietIcon(veg) {

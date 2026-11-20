@@ -3,83 +3,149 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0e0b09">
-  <title>QR Menu Cards</title>
-  <meta name="description" content="Printed table QR standees that open a live, orderable menu in any phone browser — no app download.">
+  <meta name="theme-color" content="#f2f2f0">
+  <title>Ember &amp; Saffron · The Menu</title>
+  <meta name="description" content="Walk through our kitchen's gallery of plates, then scan the QR on your table — the menu opens as a book in your browser and orders go straight to the kitchen.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Oswald:wght@500;600&family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/css/landing.css">
   <script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.min.js", "three/addons/": "/vendor/three/examples/jsm/" } }</script>
 </head>
 <body>
-  <nav class="nav">
-    <a href="/" class="logo"><span class="flame">🔥</span><span class="display">QR&nbsp;Menu</span></a>
-    <div class="nav-links">
-      <a href="#how">How it works</a>
-      <a href="#features">Features</a>
-      <a href="/admin" class="btn btn-sm">Kitchen console</a>
-    </div>
-  </nav>
+  <a class="skip" href="#book">Skip the gallery</a>
 
-  <header class="hero">
-    <div class="hero-canvas" id="heroCanvas" aria-hidden="true">
-      <div class="fallback-card"><div class="fc-inner"><b class="display">Scan me</b><img id="fallbackQr" alt=""><span>Table 1</span></div></div>
+  <header class="nav" id="nav">
+    <a class="brand" href="/" aria-label="Home"><span class="mark" id="brandMark">E&amp;S</span><span class="name" id="brandName">Ember &amp; Saffron</span></a>
+    <nav class="links" aria-label="Sections">
+      <a href="#gallery">Gallery</a>
+      <a href="#book">The book</a>
+      <a href="#how">How it works</a>
+      <a href="#kitchen">For kitchens</a>
+    </nav>
+    <div class="nav-right">
+      <a class="text-link" href="/admin">Kitchen</a>
+      <a class="pill dark" href="/menu?t=T1">Open the menu</a>
     </div>
-    <div class="hero-copy">
-      <span class="eyebrow"><i></i> Live demo · <span id="restName">Ember &amp; Saffron</span></span>
-      <h1 class="display">The menu lives<br>on the <em>table.</em></h1>
-      <p class="lead">A printed standee with a QR code. Guests point their camera, the menu opens in the browser, and the order lands in your kitchen — <strong>no app, no waiting for the waiter.</strong></p>
-      <div class="cta">
-        <a class="btn btn-primary" href="/menu?t=T1">Open the menu book →</a>
-        <a class="btn" href="/admin">Open kitchen console</a>
-      </div>
-      <p class="hint muted">Tip: open the console in one tab and the menu in another — orders appear live.</p>
-    </div>
-    <div class="scroll-cue" aria-hidden="true"><span></span></div>
   </header>
 
-  <section class="how" id="how">
-    <h2 class="display sec-h">From table to kitchen in <em>four taps</em></h2>
+  <!-- ===================== THE GALLERY (pinned, walk by scrolling) ===================== -->
+  <section class="gallery" id="gallery" aria-label="Gallery of dishes">
+    <div class="g-stage">
+      <div class="g-canvas" id="gCanvas"></div>
+      <div class="g-fallback" id="gFallback" hidden></div>
+
+      <div class="g-intro" id="gIntro">
+        <p class="mono eyebrow"><i></i><span id="introKicker">A menu you can walk through</span></p>
+        <h1 class="display-xl">The menu<br>lives on<br><em>the table.</em></h1>
+        <p class="lead">Scan the QR at your table and tonight’s menu opens in your browser as a book you turn with your thumb. No app, no waiting. First — take a walk through our gallery of plates.</p>
+        <div class="cta">
+          <a class="pill dark" href="/menu?t=T1">Open the menu book</a>
+          <button class="pill" id="startWalk" type="button">Walk the gallery <span aria-hidden="true">→</span></button>
+        </div>
+      </div>
+
+      <div class="g-toggle" role="group" aria-label="View">
+        <span class="on">Gallery</span><a href="/menu?t=T1">Book</a>
+      </div>
+
+      <div class="g-caption" id="gCaption" aria-live="polite">
+        <span class="mono k">You are walking past</span>
+        <b class="cond" id="gTitle">&nbsp;</b>
+        <a class="mono under" id="gEnter" href="/menu?t=T1">Open this chapter →</a>
+      </div>
+
+      <div class="g-controls">
+        <div class="mono hint"><span id="gHint1">Scroll or drag to walk round</span><span id="gHint2">Click a plate to look closer</span></div>
+        <div class="arrows">
+          <button class="round" id="gPrev" aria-label="Previous plate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button class="round" id="gNext" aria-label="Next plate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+      <div class="g-progress" aria-hidden="true"><i id="gBar"></i></div>
+
+      <div class="g-cursor mono" id="gCursor" aria-hidden="true">Look closer</div>
+
+      <aside class="g-detail" id="gDetail" aria-hidden="true" aria-labelledby="dName">
+        <p class="mono" id="dKicker"></p>
+        <h2 id="dName"></h2>
+        <p class="price" id="dPrice"></p>
+        <p class="desc" id="dDesc"></p>
+        <ul class="facts mono" id="dFacts"></ul>
+        <div class="d-actions">
+          <a class="pill dark" id="dOpen" href="/menu?t=T1">Find it in the menu book</a>
+          <button class="pill" id="dBack" type="button">Step back</button>
+        </div>
+        <p class="mono fine">Esc or click away to step back</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===================== THE BOOK ===================== -->
+  <section class="sec book-sec" id="book">
+    <div class="book-demo" aria-hidden="true">
+      <div class="b3d">
+        <div class="b3d-page p3"></div>
+        <div class="b3d-page p2"><span class="pg-k">Chapter II</span><span class="pg-t">Big Plates</span><span class="pg-r"></span><span class="pg-r"></span><span class="pg-r short"></span><span class="pg-r"></span><span class="pg-r short"></span></div>
+        <div class="b3d-cover"><span class="c-mono" id="bookMono">E&amp;S</span><span class="c-k">Carte du jour</span><span class="c-t" id="bookTitle">Ember &amp; Saffron</span><span class="c-r"></span></div>
+      </div>
+    </div>
+    <div class="copy">
+      <p class="mono kicker">At the table</p>
+      <h2 class="display-l">The menu, <em>as a book.</em></h2>
+      <p class="body">Scan the code on the standee and a cloth-bound menu opens on your phone. Scroll and the pages turn. Every chapter begins with a plate print; every dish can be turned in 3D, added to your order and sent to the kitchen in one tap.</p>
+      <ul class="ticks">
+        <li>Swipe, scroll or tap to turn — and back again</li>
+        <li>Live “sold out” the moment the kitchen says so</li>
+        <li>Track your order from <em>placed</em> to <em>served</em></li>
+        <li>Call for water, cutlery or the bill without waving</li>
+      </ul>
+      <a class="pill dark" href="/menu?t=T1">Open the menu book</a>
+    </div>
+  </section>
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section class="sec how" id="how">
+    <header class="sec-head">
+      <p class="mono kicker">How it works</p>
+      <h2 class="display-l">From table to kitchen in <em>four moves.</em></h2>
+    </header>
     <ol class="steps">
-      <li><span class="n">01</span><div class="ico">📷</div><h3>Scan</h3><p>Any phone camera reads the table’s QR. It encodes the table number, so you always know where to serve.</p></li>
-      <li><span class="n">02</span><div class="ico">📖</div><h3>Browse</h3><p>The menu opens as a cinematic book — scroll and the pages turn. Every dish has a framed plate and a 3D view; a searchable list view is one tap away.</p></li>
-      <li><span class="n">03</span><div class="ico">🛒</div><h3>Order</h3><p>Add dishes, leave kitchen notes, see the GST-inclusive total and send it — prices are verified on the server.</p></li>
-      <li><span class="n">04</span><div class="ico">🛎️</div><h3>Track</h3><p>Live status from “accepted” to “served”. Need water or the bill? One tap pings the floor staff.</p></li>
+      <li><span class="cond n">01</span><h3>Scan</h3><p>Every table has its own printed QR standee. The phone camera opens the menu — already knowing which table you’re at.</p></li>
+      <li><span class="cond n">02</span><h3>Browse</h3><p>Turn the pages of the menu book, or switch to the searchable list. Spice levels, veg marks and prep times on every dish.</p></li>
+      <li><span class="cond n">03</span><h3>Order</h3><p>Add dishes, leave a note for the chef and send. Prices and taxes are always calculated by the restaurant, not the phone.</p></li>
+      <li><span class="cond n">04</span><h3>Enjoy</h3><p>Watch your order move from the pass to your table, live. Need something? One tap calls the floor team.</p></li>
     </ol>
   </section>
 
-  <section class="features" id="features">
-    <h2 class="display sec-h">Everything a busy floor needs</h2>
-    <div class="fgrid">
-      <article class="f big"><div class="ico">⚡</div><h3>Real-time kitchen board</h3><p>Orders stream into a kanban — New, In the kitchen, Ready, Served — with a chime, waiter call alerts and one-tap status updates that sync to the guest’s phone instantly.</p></article>
-      <article class="f"><div class="ico">🔳</div><h3>Print-ready QR standees</h3><p>A6 acrylic inserts, folded table tents or card grids. High error-correction codes with your brand badge.</p></article>
-      <article class="f"><div class="ico">🚫</div><h3>86 a dish in a second</h3><p>Toggle “sold out” and it updates on every phone. No reprinting menus, ever.</p></article>
-      <article class="f"><div class="ico">🧊</div><h3>3D plated dishes</h3><p>No food photos yet? Every dish renders as an interactive 3D plate.</p></article>
-      <article class="f"><div class="ico">📈</div><h3>Daily insights</h3><p>Revenue by hour, top dishes and average ticket — at a glance.</p></article>
-      <article class="f"><div class="ico">🌗</div><h3>Made for phones</h3><p>Light/dark themes, accessible, thumb-friendly, works on slow restaurant Wi-Fi.</p></article>
+  <!-- ===================== FOR KITCHENS ===================== -->
+  <section class="sec kitchen" id="kitchen">
+    <div class="copy">
+      <p class="mono kicker">For the kitchen</p>
+      <h2 class="display-l">A quiet, live <em>pass.</em></h2>
+      <dl class="features">
+        <div><dt>Live order board</dt><dd>New orders arrive with a chime and move from New to Served with a tap.</dd></div>
+        <div><dt>Sold out in a second</dt><dd>Switch a dish off and every open menu knows.</dd></div>
+        <div><dt>Print-ready standees</dt><dd>A6 acrylic inserts, table tents or card sheets for every table.</dd></div>
+        <div><dt>Floor calls</dt><dd>Water, cutlery, the bill — flagged by table, never missed.</dd></div>
+        <div><dt>Tonight’s numbers</dt><dd>Revenue by hour, best sellers and average ticket.</dd></div>
+        <div><dt>Runs anywhere</dt><dd>A small Node server, or Vercel with Postgres.</dd></div>
+      </dl>
+      <div class="cta"><a class="pill dark" href="/admin">Open the kitchen console</a><a class="pill" href="/print?style=standee">Preview the standees</a></div>
     </div>
+    <figure class="qr-card">
+      <div class="qr-frame"><img id="demoQr" alt="QR code that opens the menu for Table 1" width="220" height="220"></div>
+      <figcaption><span class="mono">Table 1 · scan with your phone</span><em id="lanHint">Opens the live menu on this server.</em></figcaption>
+    </figure>
   </section>
 
-  <section class="demo">
-    <div class="demo-card">
-      <div class="demo-qr"><img id="demoQr" alt="QR code opening the demo menu for Table 1"></div>
-      <div>
-        <h2 class="display">Scan it with your phone</h2>
-        <p class="muted">This is the real QR for <b>Table 1</b>. If your phone is on the same network as this server, it opens the live menu. <span id="lanHint"></span></p>
-        <div class="cta">
-          <a class="btn btn-primary" href="/menu?t=T1">Open menu</a>
-          <a class="btn" href="/print?style=standee">Preview print cards</a>
-        </div>
-      </div>
-    </div>
-  </section>
+  <footer class="footer">
+    <span class="mono" id="footName">Ember &amp; Saffron</span>
+    <span class="mono">Scan · Browse · Order — no app needed</span>
+  </footer>
 
   <div class="grain" aria-hidden="true"></div>
-  <footer class="footer muted">Built with Node, Express, Three.js &amp; a lot of masala chai ☕</footer>
-
   <script type="module" src="/js/landing.js"></script>
 </body>
 </html>

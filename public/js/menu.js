@@ -18,7 +18,7 @@ let view = storage.get('qm:view', 'book') === 'list' ? 'list' : 'book';
 // ---------------- boot ----------------
 init().catch((e) => {
   console.error(e);
-  $('#sections').innerHTML = `<div class="empty"><div class="big">📡</div><p>${esc(e.message)}</p><button class="btn btn-sm" onclick="location.reload()">Retry</button></div>`;
+  $('#sections').innerHTML = `<div class="empty"><p class="display" style="font-size:22px">We couldn’t load the menu</p><p>${esc(e.message)}</p><button class="btn btn-sm" onclick="location.reload()">Retry</button></div>`;
 });
 
 async function init() {
@@ -51,7 +51,7 @@ async function init() {
 
 // ---------------- the menu book ----------------
 function setupBook() {
-  let lastPage = -1;
+  $('#bkBrand').textContent = menu.restaurant.name;
   book = createBook({
     root: $('#bookRoot'),
     host: $('#bookView'),
@@ -60,24 +60,43 @@ function setupBook() {
     reduced: prefersReducedMotion(),
     cur,
     money: (n) => fmtMoney(n, cur()),
-    dishArt,
     dietIcon,
     itemControl,
     onAction: (act) => {
       if (act === 'cart') $('#cartbar').click();
       if (act === 'waiter') callStaff('waiter');
     },
-    onPage: (i, pg, n) => {
-      if (i === lastPage || !pg) return;
-      lastPage = i;
-      $('#bkFolio').textContent = i === 0 ? 'Cover' : `Page ${i} of ${n - 1}`;
-      $('#bkChapter').textContent = pg.kind === 'cover' ? menu.restaurant.name
-        : pg.kind === 'contents' ? 'Contents'
-          : pg.kind === 'menu' ? `${pg.chapter.icon || ''} ${pg.chapter.name}`.trim() : 'Fin.';
+    onView: (v) => {
+      const pg = v.pageData || {};
+      let k = 'You are reading';
+      let title = '';
+      let sub = '';
+      if (v.side === 'cover') { k = 'Welcome to'; title = menu.restaurant.name; sub = 'Swipe or tap → to open'; }
+      else if (v.side === 'left' && v.page === 1) { k = 'Inside cover'; title = table ? `For ${table.label}` : 'Ex libris'; }
+      else if (pg.kind === 'contents') title = 'Contents';
+      else if (pg.kind === 'menu') { k = v.side === 'left' ? (pg.first ? 'Opening chapter' : 'Plate from') : 'You are reading'; title = pg.chapter.name; }
+      else if (pg.kind === 'end') { k = v.side === 'left' ? 'A note from' : 'The end'; title = v.side === 'left' ? 'The kitchen' : 'Fin.'; }
+      if (!sub) sub = `Page ${v.page} of ${v.total - 1}`;
+      $('#bkKicker').textContent = k;
+      $('#bkChapter').textContent = title;
+      $('#bkFolio').textContent = sub;
+      $('#bkPrev').disabled = v.stop <= 0;
+      $('#bkNext').disabled = v.stop >= v.maxStop;
+      $('#bkNext').classList.toggle('pulse', v.stop === 0);
     },
   });
   book.render();
+  $('#bkPrev').addEventListener('click', () => book.prev());
+  $('#bkNext').addEventListener('click', () => book.next());
+  $('#bkCall').addEventListener('click', (e) => { e.stopPropagation(); toggleFab(); });
   setView(view, true);
+  renderCart();
+  // Deep link from the gallery: /menu?t=T1&ch=<chapter>
+  const ch = params.get('ch');
+  if (ch) {
+    if (view === 'book') book.goToChapter(ch);
+    else document.getElementById(`cat-${ch}`)?.scrollIntoView();
+  }
 }
 
 function setView(v, first) {
@@ -99,7 +118,7 @@ async function callStaff(reason) {
   if (!table) { toast('Scan the QR on your table to call our staff.', { error: true }); return; }
   try {
     await api('/api/calls', { method: 'POST', body: { table: table.id, reason } });
-    toast('Our team has been notified — someone will be right with you.', { icon: '🛎️', ms: 3500 });
+    toast('Our team has been notified — someone will be right with you.', { icon: '✓', ms: 3500 });
   } catch (err) { toast(err.message, { error: true }); }
 }
 
@@ -110,9 +129,9 @@ function applyBranding() {
   $('#brandName').textContent = r.name;
   $('#tagline').textContent = r.tagline || '';
   const info = [];
-  if (r.hours) info.push(`<span class="chip">🕒 ${esc(r.hours)}</span>`);
-  if (r.wifi) info.push(`<span class="chip">📶 ${esc(r.wifi)}</span>`);
-  info.push(`<span class="chip">🌱 Veg / non-veg marked</span>`);
+  if (r.hours) info.push(`<span class="chip">Open ${esc(r.hours)}</span>`);
+  if (r.wifi) info.push(`<span class="chip">Wi-Fi · ${esc(r.wifi)}</span>`);
+  info.push(`<span class="chip">${dietIcon(true)} Veg marked</span>`);
   $('#infoRow').innerHTML = info.join('');
   const tb = $('#tableBadge');
   const bt = $('#bkTable');
@@ -154,10 +173,10 @@ function highlight(text) {
 function renderCats() {
   $('#cats').innerHTML = menu.categories
     .filter((c) => menu.items.some((i) => i.category === c.id))
-    .map((c) => `<button class="cat" data-cat="${esc(c.id)}">${esc(c.icon)} ${esc(c.name)}</button>`).join('');
+    .map((c) => `<button class="cat" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('');
 }
 
-function spice(n) { return n ? `<span class="spice" title="Spice level ${n}/3" aria-label="Spice level ${n} of 3">${'🌶️'.repeat(n)}</span>` : ''; }
+function spice(n) { return n ? `<span class="spice" title="Spice level ${n}/3" aria-label="Spice level ${n} of 3">${['', 'Mild', 'Medium', 'Hot'][n]}</span>` : ''; }
 
 function renderPicks() {
   const picks = menu.items.filter((i) => i.popular && i.available !== false);
@@ -189,7 +208,7 @@ function renderSections() {
     if (!items.length) return '';
     shown += items.length;
     return `<section class="cat-sec" id="cat-${esc(c.id)}" data-cat="${esc(c.id)}">
-      <h2 class="display">${esc(c.icon)} ${esc(c.name)}</h2>
+      <h2 class="display">${esc(c.name)}</h2>
       <div class="count">${items.length} dish${items.length > 1 ? 'es' : ''}</div>
       <ul class="items">${items.map((i, n) => `
         <li class="item${i.available === false ? ' sold' : ''}" data-open="${esc(i.id)}" style="animation-delay:${Math.min(n, 8) * 40}ms">
@@ -254,6 +273,7 @@ function renderCart() {
   $('#cbItems').textContent = `${t.count} item${t.count === 1 ? '' : 's'}${table ? '' : ' · browsing'}`;
   $('#cartbar').classList.toggle('show', t.count > 0);
   document.body.classList.toggle('has-cart', t.count > 0);
+  book?.setReserve(0); // cart bar shares the arrow row in the book
 
   $('#cartLines').innerHTML = cart.length ? cart.map((l, idx) => {
     const i = byId(l.id);
@@ -264,7 +284,7 @@ function renderCart() {
         <div class="cl-price">${fmtMoney(i.price * l.qty, cur())}</div></div>
       <div class="stepper"><button data-line="${idx}" data-d="-1" aria-label="Decrease">−</button><output>${l.qty}</output><button data-line="${idx}" data-d="1" aria-label="Increase">+</button></div>
     </li>`;
-  }).join('') : `<li class="empty"><div class="big">🧺</div>Your cart is empty.</li>`;
+  }).join('') : `<li class="empty"><p class="display" style="font-size:20px;margin:0 0 4px">Nothing here yet</p>Your order is empty — add something delicious.</li>`;
 
   const r = menu.restaurant;
   $('#bill').innerHTML = `
@@ -342,9 +362,9 @@ async function openItem(id) {
   $('#isNote').value = '';
   $('#isQty').textContent = '1';
   const meta = [`<span class="chip">${dietIcon(i.veg)} ${i.veg ? 'Veg' : 'Non-veg'}</span>`];
-  if (i.spice) meta.push(`<span class="chip">${'🌶️'.repeat(i.spice)} ${['', 'Mild', 'Medium', 'Hot'][i.spice]}</span>`);
-  if (i.prep) meta.push(`<span class="chip">⏱ ${esc(i.prep)} min</span>`);
-  if (i.kcal) meta.push(`<span class="chip">🔥 ${esc(i.kcal)} kcal</span>`);
+  if (i.spice) meta.push(`<span class="chip">${['', 'Mild', 'Medium', 'Hot'][i.spice]} spice</span>`);
+  if (i.prep) meta.push(`<span class="chip">${esc(i.prep)} min</span>`);
+  if (i.kcal) meta.push(`<span class="chip">${esc(i.kcal)} kcal</span>`);
   (i.tags || []).forEach((t) => meta.push(`<span class="chip">${esc(t)}</span>`));
   $('#isMeta').innerHTML = meta.join('');
   $('#isAdd').disabled = i.available === false;
@@ -360,7 +380,7 @@ async function openItem(id) {
       if (sheetItem !== i || !$('#itemSheet').classList.contains('open')) return;
       dishViewer = mountDish(stage, i);
       stage.classList.add('is-3d');
-      stage.insertAdjacentHTML('beforeend', '<span class="hint">↔ drag to spin</span>');
+      stage.insertAdjacentHTML('beforeend', '<span class="hint">Drag to turn the plate</span>');
     } catch (e) { console.warn('3D viewer unavailable', e); }
   }
 }
@@ -373,15 +393,15 @@ function updateAddLabel() {
 // Order tracker (live via Server-Sent Events, polling fallback)
 let trackStream = null;
 const STEPS = [
-  ['placed', '📝', 'Placed'], ['accepted', '👍', 'Accepted'], ['preparing', '👨‍🍳', 'Cooking'], ['ready', '🛎️', 'Ready'], ['served', '😋', 'Served'],
+  ['placed', '1', 'Placed'], ['accepted', '2', 'Accepted'], ['preparing', '3', 'Cooking'], ['ready', '4', 'Ready'], ['served', '5', 'Served'],
 ];
 const STATUS_COPY = {
-  placed: ['📝', 'Order sent!', 'The kitchen will confirm in a moment.'],
-  accepted: ['👍', 'Order accepted', 'Your dishes are queued for the fire.'],
-  preparing: ['👨‍🍳', 'Cooking now', 'Our chefs are on it — smell that?'],
-  ready: ['🛎️', 'Almost there', 'Your food is on its way to your table.'],
-  served: ['😋', 'Enjoy your meal!', 'Need anything else? Tap the bell.'],
-  cancelled: ['🙏', 'Order cancelled', 'Please speak to our staff for help.'],
+  placed: ['✓', 'Order sent', 'The kitchen will confirm in a moment.'],
+  accepted: ['✓', 'Order accepted', 'Your dishes are queued for the fire.'],
+  preparing: ['✓', 'Cooking now', 'Our chefs are on it.'],
+  ready: ['✓', 'Almost there', 'Your food is on its way to your table.'],
+  served: ['✓', 'Enjoy your meal', 'Need anything else? Tap the bell.'],
+  cancelled: ['!', 'Order cancelled', 'Please speak to our staff for help.'],
 };
 
 function renderTracker(o) {
@@ -391,7 +411,7 @@ function renderTracker(o) {
   $('#trackBody').innerHTML = `${tabs}
     <div class="track-hero">
       <div class="num">Order #${esc(o.number)} · ${esc(o.tableLabel)}</div>
-      <div class="track-anim">${emo}</div>
+      <div class="track-anim${o.status === 'cancelled' ? ' off' : ''}" aria-hidden="true"><span>${esc(emo)}</span></div>
       <h2 class="display">${esc(title)}</h2>
       <p class="muted">${esc(sub)}</p>
     </div>
@@ -520,7 +540,7 @@ function wireUi() {
   $('#isAdd').addEventListener('click', () => {
     if (!sheetItem || sheetItem.available === false) return;
     addToCart(sheetItem.id, sheetQty, $('#isNote').value.trim().slice(0, 120));
-    toast(`${sheetItem.name} added`, { icon: sheetItem.emoji });
+    toast(`${sheetItem.name} added to your order`, { icon: '✓' });
     closeSheets();
   });
 
@@ -607,13 +627,13 @@ function attachTilt(cards) {
 // Celebration burst after ordering
 function burst() {
   if (prefersReducedMotion()) return;
-  const emojis = ['🎉', '🔥', '✨', '🍛', '🌶️', '🧡'];
-  for (let k = 0; k < 26; k++) {
+  const colors = ['#e7c66f', '#f3d98b', '#ff7a3d', '#b23d17', '#f6f4ee'];
+  for (let k = 0; k < 30; k++) {
     const s = document.createElement('span');
-    s.textContent = emojis[k % emojis.length];
+    Object.assign(s.style, { width: `${6 + Math.random() * 8}px`, height: `${3 + Math.random() * 5}px`, background: colors[k % colors.length], borderRadius: '1px' });
     const ang = Math.random() * Math.PI * 2;
     const dist = 120 + Math.random() * 180;
-    Object.assign(s.style, { position: 'fixed', left: '50%', top: '70%', zIndex: 999, fontSize: `${16 + Math.random() * 18}px`, pointerEvents: 'none', transition: 'transform 1s cubic-bezier(.2,.8,.2,1), opacity 1s' });
+    Object.assign(s.style, { position: 'fixed', left: '50%', top: '70%', zIndex: 999, pointerEvents: 'none', transition: 'transform 1.2s cubic-bezier(.2,.8,.2,1), opacity 1.2s' });
     document.body.appendChild(s);
     requestAnimationFrame(() => {
       s.style.transform = `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist - 160}px) rotate(${Math.random() * 360}deg)`;

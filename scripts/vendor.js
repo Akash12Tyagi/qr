@@ -9,8 +9,6 @@ const src = path.join(root, 'node_modules', 'three');
 const dest = path.join(root, 'public', 'vendor', 'three');
 const files = [
   'build/three.module.min.js',
-  'examples/jsm/geometries/RoundedBoxGeometry.js',
-  'examples/jsm/environments/RoomEnvironment.js',
 ];
 for (const f of files) {
   fs.mkdirSync(path.dirname(path.join(dest, f)), { recursive: true });

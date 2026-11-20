@@ -21,13 +21,19 @@
   <div class="book-view" id="bookView">
     <div class="bk-bar">
       <div class="bk-left"><span class="table-badge" id="bkTable"><span class="dot"></span><span>Browsing</span></span></div>
-      <div class="bk-mid" aria-live="polite"><span id="bkFolio">Cover</span><b id="bkChapter">&nbsp;</b></div>
+      <div class="bk-mid"><span id="bkBrand">&nbsp;</span></div>
       <div class="bk-right">
-        <button class="ghost-btn" id="bkToc" aria-label="Contents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5.5c2.5-1 5.5-1 8 .5v13c-2.5-1.5-5.5-1.5-8-.5zM20 5.5c-2.5-1-5.5-1-8 .5v13c2.5-1.5 5.5-1.5 8-.5z"/></svg><span class="lbl">Contents</span></button>
-        <button class="ghost-btn hidden" id="bkOrders" aria-label="My orders">🧾<span class="pip"></span></button>
-        <button class="ghost-btn" id="toList" aria-label="Switch to list view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg><span class="lbl">List</span></button>
+        <button class="ghost-btn" id="bkToc" aria-label="Contents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5c2.5-1 5.5-1 8 .5v13c-2.5-1.5-5.5-1.5-8-.5zM20 5.5c-2.5-1-5.5-1-8 .5v13c2.5-1.5 5.5-1.5 8-.5z"/></svg><span class="lbl">Contents</span></button>
+        <button class="ghost-btn hidden" id="bkOrders" aria-label="My orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span class="lbl">Order</span><span class="pip"></span></button>
+        <button class="ghost-btn" id="bkCall" aria-label="Call staff" aria-haspopup="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18h16M6 18a6 6 0 0 1 12 0M12 7v5M10.5 7h3"/></svg></button>
+        <button class="ghost-btn" id="toList" aria-label="Switch to list view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".6"/><circle cx="4.5" cy="12" r=".6"/><circle cx="4.5" cy="18" r=".6"/></svg><span class="lbl">List</span></button>
       </div>
     </div>
+    <nav class="bk-dock" aria-label="Turn pages">
+      <button class="arrow-btn" id="bkPrev" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="bk-cap" aria-live="polite"><span class="k" id="bkKicker">Welcome</span><b id="bkChapter">&nbsp;</b><small id="bkFolio">&nbsp;</small></div>
+      <button class="arrow-btn" id="bkNext" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </nav>
     <div id="bookRoot"></div>
   </div>
 
@@ -39,9 +45,9 @@
     <div class="hero-top">
       <span class="table-badge" id="tableBadge"><span class="dot"></span><span id="tableText">Browsing</span></span>
       <div class="hero-actions">
-        <button class="btn btn-icon btn-sm btn-ghost hidden" id="ordersBtn" aria-label="My orders">🧾<span class="pip" id="ordersPip"></span></button>
-        <button class="btn btn-sm btn-ghost" id="toBook" aria-label="Switch to book view">📖 Book</button>
-        <button class="btn btn-icon btn-sm btn-ghost" id="themeBtn" aria-label="Toggle light / dark theme">🌓</button>
+        <button class="btn btn-icon btn-sm btn-ghost hidden" id="ordersBtn" aria-label="My orders"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span class="pip" id="ordersPip"></span></button>
+        <button class="btn btn-sm btn-ghost" id="toBook" aria-label="Switch to book view">Book view</button>
+        <button class="btn btn-icon btn-sm btn-ghost" id="themeBtn" aria-label="Toggle light / dark theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
       </div>
     </div>
     <h1 class="display brand" id="brandName"><span class="skeleton" style="display:inline-block;width:240px;height:40px"></span></h1>
@@ -52,12 +58,12 @@
   <div class="toolbar" id="toolbar">
     <div class="search-row">
       <label class="search">
-        <span aria-hidden="true">🔍</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
         <input id="search" type="search" placeholder="Search dishes, ingredients…" autocomplete="off" enterkeyhint="search">
       </label>
       <button class="filter" data-filter="veg" aria-pressed="false"><i class="diet"></i>Veg</button>
-      <button class="filter" data-filter="popular" aria-pressed="false">⭐ Popular</button>
-      <button class="filter" data-filter="mild" aria-pressed="false">🌿 Mild</button>
+      <button class="filter" data-filter="popular" aria-pressed="false">Chef’s picks</button>
+      <button class="filter" data-filter="mild" aria-pressed="false">Mild</button>
     </div>
     <nav class="cats" id="cats" aria-label="Menu categories"></nav>
   </div>
@@ -83,12 +89,12 @@
   <!-- Call waiter -->
   <div class="fab-wrap" id="fabWrap">
     <div class="fab-menu" id="fabMenu" role="menu">
-      <button role="menuitem" data-call="waiter">🙋 Call waiter</button>
-      <button role="menuitem" data-call="water">💧 Water please</button>
-      <button role="menuitem" data-call="cutlery">🍴 Cutlery</button>
-      <button role="menuitem" data-call="bill">🧾 Get the bill</button>
+      <button role="menuitem" data-call="waiter">Call a waiter</button>
+      <button role="menuitem" data-call="water">Water, please</button>
+      <button role="menuitem" data-call="cutlery">Extra cutlery</button>
+      <button role="menuitem" data-call="bill">Bring the bill</button>
     </div>
-    <button class="fab" id="fab" aria-haspopup="menu" aria-expanded="false" aria-label="Call staff">🛎️</button>
+    <button class="fab" id="fab" aria-haspopup="menu" aria-expanded="false" aria-label="Call staff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 18h16M6 18a6 6 0 0 1 12 0M12 7v5M10.5 7h3"/></svg></button>
   </div>
 
   <!-- Cart bar -->

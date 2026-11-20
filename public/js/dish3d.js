@@ -1,20 +1,7 @@
 // Interactive 3D "plated dish" viewer for the item sheet.
-// Procedural: a ceramic plate (lathe geometry), the dish emoji as a billboarded hero,
-// garnish particles, rising steam and a warm rim light. Drag to spin, auto-rotates.
+// Procedural: a ceramic plate (lathe geometry) with the dish's illustration laid in the well, rising steam and a warm rim light. Drag to spin, auto-rotates.
 import * as THREE from 'three';
-
-function emojiTexture(emoji, size = 256) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const ctx = c.getContext('2d');
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `${size * 0.78}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-  ctx.fillText(emoji, size / 2, size / 2 + size * 0.05);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
+import { drawPlated } from './dishart.js';
 
 function softDot(size = 64) {
   const c = document.createElement('canvas');
@@ -94,49 +81,27 @@ export function mountDish(container, item) {
 
   // Sauce swoosh (coloured disc) in the well
   const sauce = new THREE.Mesh(
-    new THREE.CircleGeometry(1.05, 64),
-    new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hue, 0.7, 0.42), roughness: 0.35, metalness: 0.05 }),
+    new THREE.CircleGeometry(1.36, 64),
+    new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hue, 0.35, 0.82), roughness: 0.35, metalness: 0.05 }),
   );
   sauce.rotation.x = -Math.PI / 2;
   sauce.position.y = 0.105;
   sauce.receiveShadow = true;
   group.add(sauce);
 
-  // Hero: emoji sprite
-  const heroMat = new THREE.SpriteMaterial({ map: emojiTexture(item.emoji || '🍽️'), transparent: true });
-  const hero = new THREE.Sprite(heroMat);
-  hero.scale.set(1.9, 1.9, 1);
-  hero.position.y = 1.05;
-  scene.add(hero); // not in group: sprites always face camera anyway
-
-  // Shadow-casting proxy under the hero
-  const blob = new THREE.Mesh(new THREE.SphereGeometry(0.6, 24, 16), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
-  blob.scale.set(1, 0.4, 1);
-  blob.position.y = 0.5;
-  blob.castShadow = true;
-  group.add(blob);
-
-  // Garnish: herbs / spice flecks scattered on the sauce
-  const garnish = new THREE.InstancedMesh(
-    new THREE.IcosahedronGeometry(0.05, 0),
-    new THREE.MeshStandardMaterial({ roughness: 0.6 }),
-    70,
+  // The dish itself: the illustrated food laid into the plate's well as a decal, with a
+  // soft occlusion ring so it sits in the sauce rather than floating on it.
+  const foodTex = new THREE.CanvasTexture(drawPlated(item, 1024, { withPlate: false }));
+  foodTex.colorSpace = THREE.SRGBColorSpace;
+  foodTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const food = new THREE.Mesh(
+    new THREE.CircleGeometry(1.32, 96),
+    new THREE.MeshStandardMaterial({ map: foodTex, transparent: true, roughness: 0.42, metalness: 0, alphaTest: 0.02 }),
   );
-  const m = new THREE.Matrix4();
-  const col = new THREE.Color();
-  for (let k = 0; k < 70; k++) {
-    const r = 0.5 + Math.random() * 0.75;
-    const a = Math.random() * Math.PI * 2;
-    m.compose(
-      new THREE.Vector3(Math.cos(a) * r, 0.13, Math.sin(a) * r),
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 3, Math.random() * 3, 0)),
-      new THREE.Vector3(1, 0.4 + Math.random(), 1).multiplyScalar(0.6 + Math.random()),
-    );
-    garnish.setMatrixAt(k, m);
-    col.setHSL(k % 3 === 0 ? 0.3 : hue + (Math.random() - 0.5) * 0.08, 0.7, k % 3 === 0 ? 0.35 : 0.55);
-    garnish.setColorAt(k, col);
-  }
-  group.add(garnish);
+  food.rotation.x = -Math.PI / 2;
+  food.position.y = 0.118;
+  food.receiveShadow = true;
+  group.add(food);
 
   // Steam
   const STEAM = 40;
@@ -177,8 +142,6 @@ export function mountDish(container, item) {
     const t = clock.elapsedTime;
     if (!dragging) { vel += (0.004 - vel) * 0.02; rotY += vel; }
     group.rotation.y = rotY;
-    hero.position.y = 1.05 + Math.sin(t * 1.6) * 0.06;
-    hero.material.rotation = Math.sin(t * 0.9) * 0.06 + vel * 4;
     rim.intensity = 16 + Math.sin(t * 3) * 3;
     for (let k = 0; k < STEAM; k++) {
       life[k] += dt * (0.25 + (k % 5) * 0.04);
@@ -199,7 +162,6 @@ export function mountDish(container, item) {
     const k = Math.min(1, (performance.now() - start) / 650);
     const e = 1 - Math.pow(1 - k, 3);
     group.scale.setScalar(0.01 + e * 0.99);
-    hero.scale.setScalar(1.9 * e);
     if (k < 1 && alive) requestAnimationFrame(grow);
   })();
   frame();
