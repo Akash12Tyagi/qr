@@ -349,19 +349,30 @@ async function openTracker(orderId) {
     renderTracker(o);
     if (!$('#trackSheet').classList.contains('open')) showSheet($('#trackSheet'));
     if (trackStream) trackStream.close();
-    if ('EventSource' in window) {
+    let last = o.status;
+    const onUpdate = (upd) => {
+      renderTracker(upd);
+      if (upd.status !== last) {
+        last = upd.status;
+        toast(STATUS_COPY[upd.status]?.[1] || 'Order updated', { icon: STATUS_COPY[upd.status]?.[0] });
+        if (navigator.vibrate) try { navigator.vibrate([20, 40, 20]); } catch { /* ignore */ }
+      }
+    };
+    if (menu.realtime === 'poll' || !('EventSource' in window)) {
+      // Serverless hosting: no push, so re-check the order every few seconds while the sheet is open.
+      let stopped = false;
+      let timer = null;
+      const tick = async () => {
+        if (stopped) return;
+        try { onUpdate(await api(`/api/orders/${encodeURIComponent(id)}`)); } catch { /* retry next tick */ }
+        if (!stopped && !['served', 'cancelled'].includes(last)) timer = setTimeout(tick, document.hidden ? 10000 : 4000);
+      };
+      timer = setTimeout(tick, 4000);
+      trackStream = { close() { stopped = true; clearTimeout(timer); } };
+    } else {
       trackStream = new EventSource(`/api/orders/${encodeURIComponent(id)}/events`);
-      let last = o.status;
       trackStream.addEventListener('order:update', (ev) => {
-        try {
-          const upd = JSON.parse(ev.data);
-          renderTracker(upd);
-          if (upd.status !== last) {
-            last = upd.status;
-            toast(STATUS_COPY[upd.status]?.[1] || 'Order updated', { icon: STATUS_COPY[upd.status]?.[0] });
-            if (navigator.vibrate) try { navigator.vibrate([20, 40, 20]); } catch { /* ignore */ }
-          }
-        } catch { /* ignore malformed */ }
+        try { onUpdate(JSON.parse(ev.data)); } catch { /* ignore malformed */ }
       });
     }
   } catch (e) {

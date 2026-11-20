@@ -9,7 +9,7 @@ let server;
 let base;
 
 test.before(async () => {
-  const app = createApp({ dbFile: null, adminPin: PIN }); // in-memory store
+  const app = createApp({ dbFile: null, databaseUrl: '', adminPin: PIN }); // in-memory store
   await new Promise((resolve) => { server = app.listen(0, resolve); });
   base = `http://127.0.0.1:${server.address().port}`;
   server.on('close', () => app.locals.closeStreams());
@@ -164,4 +164,25 @@ test('live SSE stream delivers new orders to the kitchen', async () => {
   ctrl.abort();
   assert.match(buf, /event: order:new/);
   assert.match(buf, /"table":"T5"/);
+});
+
+test('polling mode (serverless) exposes a change feed instead of SSE', async () => {
+  const app = createApp({ dbFile: null, adminPin: PIN, realtime: 'poll', databaseUrl: '' });
+  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const b = `http://127.0.0.1:${srv.address().port}`;
+  try {
+    const menu = await (await fetch(`${b}/api/menu`)).json();
+    assert.equal(menu.realtime, 'poll');
+    const since = new Date(Date.now() - 1000).toISOString();
+    const order = await (await fetch(`${b}/api/orders`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ table: 'T2', items: [{ id: menu.items[0].id, qty: 1 }] }),
+    })).json();
+    const ch = await (await fetch(`${b}/api/admin/changes?since=${encodeURIComponent(since)}`, { headers: { 'x-admin-pin': PIN } })).json();
+    assert.ok(ch.now);
+    assert.ok(ch.orders.some((o) => o.id === order.id));
+    assert.equal(ch.orders[0].ip, undefined);
+    assert.equal((await fetch(`${b}/api/admin/stream?pin=${PIN}`)).status, 404);
+    assert.equal((await fetch(`${b}/api/admin/changes`)).status, 401);
+  } finally { srv.close(); }
 });

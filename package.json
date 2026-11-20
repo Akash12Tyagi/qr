@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build": "node scripts/vendor.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,7 @@
   "homepage": "https://github.com/Akash12Tyagi/qr#readme",
   "dependencies": {
     "express": "^4.22.3",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "three": "^0.160.0"
   },

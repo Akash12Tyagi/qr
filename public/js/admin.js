@@ -65,41 +65,73 @@ function setConn(kind, text) {
   c.className = `conn ${kind}`;
   c.querySelector('span').textContent = text;
 }
+function onOrderNew(o) {
+  if (state.orders.some((x) => x.id === o.id)) return onOrderUpdate(o);
+  state.orders.push(o);
+  fresh.add(o.id);
+  setTimeout(() => { fresh.delete(o.id); if (currentTab === 'live') renderBoard(); }, 15000);
+  renderBoard();
+  chime();
+  toast(`New order #${o.number} · ${o.tableLabel}`, { icon: '🔔', ms: 4000 });
+  if (document.hidden) document.title = `🔔 New order · ${state.restaurant.name}`;
+}
+function onOrderUpdate(o) {
+  const idx = state.orders.findIndex((x) => x.id === o.id);
+  if (idx >= 0) state.orders[idx] = o; else state.orders.push(o);
+  renderBoard();
+}
+function onCallNew(c) {
+  if (state.calls.some((x) => x.id === c.id)) return;
+  state.calls.push(c);
+  renderCalls();
+  chime(2);
+  toast(`${c.tableLabel} needs ${REASONS[c.reason] || 'help'}`, { icon: '🛎️', ms: 5000 });
+}
+function onCallResolved(c) {
+  state.calls = state.calls.filter((x) => x.id !== c.id);
+  renderCalls();
+}
+
 function connect() {
+  if (state?.realtime === 'poll') return startPolling();
   if (!('EventSource' in window)) { setConn('off', 'Live updates unsupported'); return; }
   if (es) es.close();
   es = new EventSource(`/api/admin/stream?pin=${encodeURIComponent(pin)}`);
   es.addEventListener('open', () => setConn('on', 'Live'));
   es.addEventListener('error', () => setConn('off', 'Reconnecting…'));
   es.addEventListener('hello', () => { setConn('on', 'Live'); });
-  es.addEventListener('order:new', (ev) => {
-    const o = parse(ev); if (!o) return;
-    if (!state.orders.some((x) => x.id === o.id)) state.orders.push(o);
-    fresh.add(o.id);
-    setTimeout(() => { fresh.delete(o.id); if (currentTab === 'live') renderBoard(); }, 15000);
-    renderBoard();
-    chime();
-    toast(`New order #${o.number} · ${o.tableLabel}`, { icon: '🔔', ms: 4000 });
-    if (document.hidden) document.title = `🔔 New order · ${state.restaurant.name}`;
-  });
-  es.addEventListener('order:update', (ev) => {
-    const o = parse(ev); if (!o) return;
-    const idx = state.orders.findIndex((x) => x.id === o.id);
-    if (idx >= 0) state.orders[idx] = o; else state.orders.push(o);
-    renderBoard();
-  });
-  es.addEventListener('call:new', (ev) => {
-    const c = parse(ev); if (!c) return;
-    state.calls.push(c);
-    renderCalls();
-    chime(2);
-    toast(`${c.tableLabel} needs ${REASONS[c.reason] || 'help'}`, { icon: '🛎️', ms: 5000 });
-  });
-  es.addEventListener('call:resolved', (ev) => {
-    const c = parse(ev); if (!c) return;
-    state.calls = state.calls.filter((x) => x.id !== c.id);
-    renderCalls();
-  });
+  es.addEventListener('order:new', (ev) => { const o = parse(ev); if (o) onOrderNew(o); });
+  es.addEventListener('order:update', (ev) => { const o = parse(ev); if (o) onOrderUpdate(o); });
+  es.addEventListener('call:new', (ev) => { const c = parse(ev); if (c) onCallNew(c); });
+  es.addEventListener('call:resolved', (ev) => { const c = parse(ev); if (c) onCallResolved(c); });
+}
+
+// Serverless hosting (e.g. Vercel) can't push, so ask for changes every few seconds.
+let since = null;
+let pollTimer = null;
+function startPolling() {
+  since = state.now || new Date().toISOString();
+  clearTimeout(pollTimer);
+  const tick = async () => {
+    try {
+      const ch = await call(`/api/admin/changes?since=${encodeURIComponent(since)}`);
+      since = ch.now;
+      for (const o of ch.orders) {
+        const prev = state.orders.find((x) => x.id === o.id);
+        if (!prev) onOrderNew(o);
+        else if (prev.updatedAt !== o.updatedAt) onOrderUpdate(o);
+      }
+      const open = new Set(ch.calls.map((c) => c.id));
+      for (const c of state.calls.filter((x) => !open.has(x.id))) onCallResolved(c);
+      for (const c of ch.calls) onCallNew(c);
+      setConn('on', 'Live');
+    } catch (e) {
+      if (e.status === 401) { sessionStorage.removeItem('qm:pin'); location.reload(); return; }
+      setConn('off', 'Reconnecting…');
+    }
+    pollTimer = setTimeout(tick, document.hidden ? 8000 : 3000);
+  };
+  pollTimer = setTimeout(tick, 1500);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state) document.title = `${state.restaurant.name} · Kitchen Console`; });
 function parse(ev) { try { return JSON.parse(ev.data); } catch { return null; } }

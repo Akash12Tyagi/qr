@@ -46,12 +46,27 @@ Open http://localhost:3000 — the console is at `/admin` (demo PIN **1234**).
 
 To scan the QR codes from a real phone, open the console using the **Network** address printed in the terminal (same Wi‑Fi), or set **Settings → Public URL** to your deployed domain. QR codes encode that base URL.
 
+## Deploy to Vercel (with Neon Postgres)
+
+The app runs unchanged on Vercel: static pages come from `public/` via the CDN and `/api/*` runs as a serverless function (`api/index.js`).
+
+- **Storage:** set `DATABASE_URL` (added automatically by the Neon integration: `vercel integration add neon`) and all state lives in one Postgres row, written in row-locked transactions so concurrent orders never clash. Without it, the app uses `data/db.json`.
+- **Live updates:** serverless functions can't hold Server-Sent Events, so on Vercel the kitchen console and order tracker poll every 3–4 s instead (`GET /api/admin/changes?since=…`). Locally you still get instant SSE.
+- `npm run build` copies the three.js files the pages need into `public/vendor/three`.
+
+```bash
+vercel deploy --prod
+```
+
+Set `ADMIN_PIN` in the Vercel project's environment variables before real use.
+
 ## Configuration
 
 | Env var     | Default | Purpose                         |
 |-------------|---------|---------------------------------|
 | `PORT`      | `3000`  | HTTP port                       |
 | `ADMIN_PIN` | `1234`  | Staff PIN for the console & API |
+| `DATABASE_URL` | — | Postgres (Neon) connection string; uses `data/db.json` when unset |
 
 Data lives in `data/db.json` (created from `data/seed.js` on first run; delete it to reset, or use **Settings → Reset demo data**).
 

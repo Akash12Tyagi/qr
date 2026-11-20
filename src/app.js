@@ -4,7 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const QRCode = require('qrcode');
-const { Store } = require('./db');
+const { createStore } = require('./db');
 const seed = require('../data/seed');
 
 const ORDER_FLOW = ['placed', 'accepted', 'preparing', 'ready', 'served'];
@@ -43,8 +43,20 @@ function safeEqual(a, b) {
 
 function createApp(options = {}) {
   const adminPin = String(options.adminPin || process.env.ADMIN_PIN || '1234');
-  const store = new Store(options.dbFile === undefined ? path.join(__dirname, '..', 'data', 'db.json') : options.dbFile, seed);
-  const db = () => store.data;
+  const databaseUrl = options.databaseUrl !== undefined ? options.databaseUrl
+    : (process.env.DATABASE_URL || process.env.POSTGRES_URL || '');
+  const store = createStore({
+    file: options.dbFile === undefined ? path.join(__dirname, '..', 'data', 'db.json') : options.dbFile,
+    seed,
+    databaseUrl,
+  });
+  // Serverless hosts (Vercel) can't hold SSE connections or share memory between
+  // instances, so clients poll instead. Locally we keep instant SSE push.
+  const realtime = options.realtime || (process.env.VERCEL ? 'poll' : 'sse');
+  const db = () => store.read();
+  const mutate = (fn) => store.mutate(fn);
+  // Express 4 doesn't catch rejected promises: route them to the error handler.
+  const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
   const app = express();
   app.disable('x-powered-by');
@@ -101,33 +113,41 @@ function createApp(options = {}) {
     next();
   };
 
-  const baseUrl = (req) => (db().restaurant.publicUrl || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
-  const tableUrl = (req, tableId) => `${baseUrl(req)}/menu?t=${encodeURIComponent(tableId)}`;
+  const baseUrl = (req, d) => (d.restaurant.publicUrl || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  const tableUrl = (req, d, tableId) => `${baseUrl(req, d)}/menu?t=${encodeURIComponent(tableId)}`;
   const publicOrder = (o) => {
     const { ip, ...rest } = o; // never leak customer IPs
     return rest;
   };
 
   // ======================= PUBLIC API =======================
-  app.get('/api/health', (req, res) => res.json({ ok: true, uptime: process.uptime() }));
+  app.get('/api/health', h(async (req, res) => {
+    await db();
+    res.json({ ok: true, uptime: process.uptime(), storage: databaseUrl ? 'postgres' : 'file', realtime });
+  }));
 
-  app.get('/api/menu', (req, res) => {
-    const d = db();
+  app.get('/api/menu', h(async (req, res) => {
+    const d = await db();
     const { publicUrl, ...restaurant } = d.restaurant;
-    res.json({ restaurant, categories: d.categories, items: d.items });
-  });
+    res.json({ restaurant, categories: d.categories, items: d.items, realtime });
+  }));
 
-  app.get('/api/tables', (req, res) => res.json(db().tables.map(({ id, label }) => ({ id, label }))));
+  app.get('/api/tables', h(async (req, res) => res.json((await db()).tables.map(({ id, label }) => ({ id, label })))));
 
-  app.get('/api/tables/:id', (req, res, next) => {
-    const t = db().tables.find((x) => x.id === req.params.id);
-    if (!t) return next(new HttpError(404, 'Unknown table'));
+  app.get('/api/tables/:id', h(async (req, res) => {
+    const t = (await db()).tables.find((x) => x.id === req.params.id);
+    if (!t) throw new HttpError(404, 'Unknown table');
     res.json(t);
-  });
+  }));
 
-  app.post('/api/orders', (req, res) => {
+  app.post('/api/orders', h(async (req, res) => {
     rateLimit(`order:${req.ip}`, 8, 60_000);
-    const d = db();
+    const order = await mutate((d) => createOrder(d, req));
+    broadcast('order:new', publicOrder(order));
+    res.status(201).json(publicOrder(order));
+  }));
+
+  function createOrder(d, req) {
     const body = req.body || {};
     const table = d.tables.find((t) => t.id === str(body.table, 20));
     if (!table) throw bad('Please scan the QR code on your table again — table not recognised.');
@@ -170,52 +190,54 @@ function createApp(options = {}) {
     };
     d.orders.push(order);
     if (d.orders.length > 2000) d.orders.splice(0, d.orders.length - 2000);
-    store.save();
-    broadcast('order:new', publicOrder(order));
-    res.status(201).json(publicOrder(order));
-  });
+    return order;
+  }
 
-  app.get('/api/orders/:id', (req, res, next) => {
-    const o = db().orders.find((x) => x.id === req.params.id);
-    if (!o) return next(new HttpError(404, 'Order not found'));
+  app.get('/api/orders/:id', h(async (req, res) => {
+    const o = (await db()).orders.find((x) => x.id === req.params.id);
+    if (!o) throw new HttpError(404, 'Order not found');
     res.json(publicOrder(o));
-  });
+  }));
 
-  app.get('/api/orders/:id/events', (req, res, next) => {
-    const o = db().orders.find((x) => x.id === req.params.id);
-    if (!o) return next(new HttpError(404, 'Order not found'));
+  app.get('/api/orders/:id/events', h(async (req, res) => {
+    if (realtime !== 'sse') throw new HttpError(404, 'Live stream not available here; poll /api/orders/:id');
+    const o = (await db()).orders.find((x) => x.id === req.params.id);
+    if (!o) throw new HttpError(404, 'Order not found');
     openStream(req, res, o.id);
     send(res, 'order:update', publicOrder(o));
-  });
+  }));
 
-  app.post('/api/calls', (req, res) => {
+  app.post('/api/calls', h(async (req, res) => {
     rateLimit(`call:${req.ip}`, 6, 60_000);
-    const d = db();
-    const table = d.tables.find((t) => t.id === str(req.body && req.body.table, 20));
-    if (!table) throw bad('Unknown table');
-    const reason = CALL_REASONS.includes(req.body.reason) ? req.body.reason : 'waiter';
-    const open = d.calls.find((c) => c.table === table.id && c.reason === reason && !c.resolved);
-    if (open) return res.json(open); // idempotent — no spam on the floor
-    const call = { id: crypto.randomUUID(), table: table.id, tableLabel: table.label, reason, resolved: false, createdAt: new Date().toISOString() };
-    d.calls.push(call);
-    if (d.calls.length > 500) d.calls.splice(0, d.calls.length - 500);
-    store.save();
-    broadcast('call:new', call);
-    res.status(201).json(call);
-  });
+    const result = await mutate((d) => {
+      const table = d.tables.find((t) => t.id === str(req.body && req.body.table, 20));
+      if (!table) throw bad('Unknown table');
+      const reason = CALL_REASONS.includes(req.body.reason) ? req.body.reason : 'waiter';
+      const open = d.calls.find((c) => c.table === table.id && c.reason === reason && !c.resolved);
+      if (open) return { call: open, created: false }; // idempotent — no spam on the floor
+      const call = { id: crypto.randomUUID(), table: table.id, tableLabel: table.label, reason, resolved: false, createdAt: new Date().toISOString() };
+      d.calls.push(call);
+      if (d.calls.length > 500) d.calls.splice(0, d.calls.length - 500);
+      return { call, created: true };
+    });
+    if (!result.created) return res.json(result.call);
+    broadcast('call:new', result.call);
+    res.status(201).json(result.call);
+  }));
 
   // QR code for a table (SVG by default, ?format=png for a download-ready image)
   app.get('/api/qr/:tableId', async (req, res, next) => {
     try {
       const id = req.params.tableId.replace(/\.(svg|png)$/i, '');
-      const table = db().tables.find((t) => t.id === id);
+      const d = await db();
+      const table = d.tables.find((t) => t.id === id);
       if (!table) throw new HttpError(404, 'Unknown table');
       const opts = {
         errorCorrectionLevel: 'H', // high: survives the logo badge we overlay on print cards
         margin: int(req.query.margin, 0, 8, 1),
         color: { dark: hexColor(req.query.dark, '#111111'), light: hexColor(req.query.light, '#ffffff') },
       };
-      const url = tableUrl(req, table.id);
+      const url = tableUrl(req, d, table.id);
       const wantsPng = req.query.format === 'png' || /\.png$/i.test(req.params.tableId);
       if (wantsPng) {
         const buf = await QRCode.toBuffer(url, { ...opts, width: int(req.query.size, 128, 2048, 1024) });
@@ -232,24 +254,43 @@ function createApp(options = {}) {
   admin.use(requireAdmin);
 
   admin.get('/verify', (req, res) => res.json({ ok: true }));
-  admin.get('/stream', (req, res) => { openStream(req, res, 'admin'); send(res, 'hello', { at: Date.now() }); });
+  admin.get('/stream', (req, res, next) => {
+    if (realtime !== 'sse') return next(new HttpError(404, 'Live stream not available here; poll /api/admin/changes'));
+    openStream(req, res, 'admin');
+    send(res, 'hello', { at: Date.now() });
+  });
 
-  admin.get('/state', (req, res) => {
-    const d = db();
+  // Polling feed for serverless hosts: orders touched since `since`, plus all open calls.
+  admin.get('/changes', h(async (req, res) => {
+    const d = await db();
+    const since = new Date(String(req.query.since || ''));
+    const cutoff = Number.isNaN(since.getTime()) ? 0 : since.getTime() - 5000; // overlap for clock skew
     res.json({
+      now: new Date().toISOString(),
+      orders: d.orders.filter((o) => new Date(o.updatedAt).getTime() >= cutoff).map(publicOrder),
+      calls: d.calls.filter((c) => !c.resolved),
+    });
+  }));
+
+  admin.get('/state', h(async (req, res) => {
+    const d = await db();
+    res.json({
+      now: new Date().toISOString(),
+      realtime,
       restaurant: d.restaurant,
       categories: d.categories,
       items: d.items,
-      tables: d.tables.map((t) => ({ ...t, url: tableUrl(req, t.id) })),
+      tables: d.tables.map((t) => ({ ...t, url: tableUrl(req, d, t.id) })),
       orders: d.orders.slice(-300).map(publicOrder),
       calls: d.calls.filter((c) => !c.resolved),
-      baseUrl: baseUrl(req),
+      baseUrl: baseUrl(req, d),
     });
-  });
+  }));
 
-  admin.get('/stats', (req, res) => {
+  admin.get('/stats', h(async (req, res) => {
+    const d = await db();
     const start = new Date(); start.setHours(0, 0, 0, 0);
-    const today = db().orders.filter((o) => new Date(o.createdAt) >= start && o.status !== 'cancelled');
+    const today = d.orders.filter((o) => new Date(o.createdAt) >= start && o.status !== 'cancelled');
     const revenue = money(today.reduce((s, o) => s + o.total, 0));
     const counts = {};
     for (const o of today) for (const l of o.items) counts[l.name] = (counts[l.name] || 0) + l.qty;
@@ -260,42 +301,45 @@ function createApp(options = {}) {
       orders: today.length,
       revenue,
       avgTicket: today.length ? money(revenue / today.length) : 0,
-      active: db().orders.filter((o) => !['served', 'cancelled'].includes(o.status)).length,
+      active: d.orders.filter((o) => !['served', 'cancelled'].includes(o.status)).length,
       top,
       hours: hours.map(money),
     });
-  });
+  }));
 
-  admin.patch('/orders/:id', (req, res) => {
-    const o = db().orders.find((x) => x.id === req.params.id);
-    if (!o) throw new HttpError(404, 'Order not found');
-    const { status, paid } = req.body || {};
-    if (status !== undefined) {
-      if (!ORDER_STATUSES.includes(status)) throw bad('Invalid status');
-      if (o.status !== status) {
-        o.status = status;
-        o.history.push({ status, at: new Date().toISOString() });
+  admin.patch('/orders/:id', h(async (req, res) => {
+    const o = await mutate((d) => {
+      const o = d.orders.find((x) => x.id === req.params.id);
+      if (!o) throw new HttpError(404, 'Order not found');
+      const { status, paid } = req.body || {};
+      if (status !== undefined) {
+        if (!ORDER_STATUSES.includes(status)) throw bad('Invalid status');
+        if (o.status !== status) {
+          o.status = status;
+          o.history.push({ status, at: new Date().toISOString() });
+        }
       }
-    }
-    if (paid !== undefined) o.paid = Boolean(paid);
-    o.updatedAt = new Date().toISOString();
-    store.save();
+      if (paid !== undefined) o.paid = Boolean(paid);
+      o.updatedAt = new Date().toISOString();
+      return o;
+    });
     broadcast('order:update', publicOrder(o), o.id);
     res.json(publicOrder(o));
-  });
+  }));
 
-  admin.patch('/calls/:id', (req, res) => {
-    const c = db().calls.find((x) => x.id === req.params.id);
-    if (!c) throw new HttpError(404, 'Call not found');
-    c.resolved = true;
-    c.resolvedAt = new Date().toISOString();
-    store.save();
+  admin.patch('/calls/:id', h(async (req, res) => {
+    const c = await mutate((d) => {
+      const c = d.calls.find((x) => x.id === req.params.id);
+      if (!c) throw new HttpError(404, 'Call not found');
+      c.resolved = true;
+      c.resolvedAt = new Date().toISOString();
+      return c;
+    });
     broadcast('call:resolved', c);
     res.json(c);
-  });
+  }));
 
-  function cleanItem(body, existing = {}) {
-    const d = db();
+  function cleanItem(d, body, existing = {}) {
     const merged = { ...existing, ...body };
     const name = str(merged.name, 60);
     if (!name) throw bad('Dish name is required');
@@ -325,100 +369,113 @@ function createApp(options = {}) {
 
   const menuChanged = () => broadcast('menu:update', { at: Date.now() });
 
-  admin.post('/items', (req, res) => {
-    const item = cleanItem(req.body || {});
-    item.id = `i${crypto.randomBytes(4).toString('hex')}`;
-    db().items.push(item);
-    store.save(); menuChanged();
+  admin.post('/items', h(async (req, res) => {
+    const item = await mutate((d) => {
+      const item = cleanItem(d, req.body || {});
+      item.id = `i${crypto.randomBytes(4).toString('hex')}`;
+      d.items.push(item);
+      return item;
+    });
+    menuChanged();
     res.status(201).json(item);
-  });
+  }));
 
-  admin.put('/items/:id', (req, res) => {
-    const d = db();
-    const idx = d.items.findIndex((i) => i.id === req.params.id);
-    if (idx < 0) throw new HttpError(404, 'Dish not found');
-    d.items[idx] = cleanItem(req.body || {}, d.items[idx]);
-    store.save(); menuChanged();
-    res.json(d.items[idx]);
-  });
+  admin.put('/items/:id', h(async (req, res) => {
+    const item = await mutate((d) => {
+      const idx = d.items.findIndex((i) => i.id === req.params.id);
+      if (idx < 0) throw new HttpError(404, 'Dish not found');
+      d.items[idx] = cleanItem(d, req.body || {}, d.items[idx]);
+      return d.items[idx];
+    });
+    menuChanged();
+    res.json(item);
+  }));
 
-  admin.delete('/items/:id', (req, res) => {
-    const d = db();
-    const idx = d.items.findIndex((i) => i.id === req.params.id);
-    if (idx < 0) throw new HttpError(404, 'Dish not found');
-    d.items.splice(idx, 1);
-    store.save(); menuChanged();
+  admin.delete('/items/:id', h(async (req, res) => {
+    await mutate((d) => {
+      const idx = d.items.findIndex((i) => i.id === req.params.id);
+      if (idx < 0) throw new HttpError(404, 'Dish not found');
+      d.items.splice(idx, 1);
+    });
+    menuChanged();
     res.status(204).end();
-  });
+  }));
 
-  admin.post('/categories', (req, res) => {
-    const d = db();
-    const name = str(req.body && req.body.name, 40);
-    if (!name) throw bad('Category name is required');
-    let id = slug(name) || `c${Date.now()}`;
-    while (d.categories.some((c) => c.id === id)) id += '-2';
-    const cat = { id, name, icon: str(req.body.icon, 8) || '🍽️' };
-    d.categories.push(cat);
-    store.save(); menuChanged();
+  admin.post('/categories', h(async (req, res) => {
+    const cat = await mutate((d) => {
+      const name = str(req.body && req.body.name, 40);
+      if (!name) throw bad('Category name is required');
+      let id = slug(name) || `c${Date.now()}`;
+      while (d.categories.some((c) => c.id === id)) id += '-2';
+      const cat = { id, name, icon: str(req.body.icon, 8) || '🍽️' };
+      d.categories.push(cat);
+      return cat;
+    });
+    menuChanged();
     res.status(201).json(cat);
-  });
+  }));
 
-  admin.delete('/categories/:id', (req, res) => {
-    const d = db();
-    if (d.items.some((i) => i.category === req.params.id)) throw bad('Move or delete the dishes in this category first');
-    const idx = d.categories.findIndex((c) => c.id === req.params.id);
-    if (idx < 0) throw new HttpError(404, 'Category not found');
-    d.categories.splice(idx, 1);
-    store.save(); menuChanged();
+  admin.delete('/categories/:id', h(async (req, res) => {
+    await mutate((d) => {
+      if (d.items.some((i) => i.category === req.params.id)) throw bad('Move or delete the dishes in this category first');
+      const idx = d.categories.findIndex((c) => c.id === req.params.id);
+      if (idx < 0) throw new HttpError(404, 'Category not found');
+      d.categories.splice(idx, 1);
+    });
+    menuChanged();
     res.status(204).end();
-  });
+  }));
 
-  admin.post('/tables', (req, res) => {
-    const d = db();
-    const label = str(req.body && req.body.label, 30);
-    if (!label) throw bad('Table name is required');
-    let id = str(req.body.id, 12).toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    if (!id) {
-      let n = d.tables.length + 1;
-      while (d.tables.some((t) => t.id === `T${n}`)) n++;
-      id = `T${n}`;
-    }
-    if (d.tables.some((t) => t.id === id)) throw bad('A table with that code already exists');
-    const table = { id, label, seats: int(req.body.seats, 1, 30, 4) };
-    d.tables.push(table);
-    store.save();
-    res.status(201).json({ ...table, url: tableUrl(req, table.id) });
-  });
+  admin.post('/tables', h(async (req, res) => {
+    const out = await mutate((d) => {
+      const label = str(req.body && req.body.label, 30);
+      if (!label) throw bad('Table name is required');
+      let id = str(req.body.id, 12).toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      if (!id) {
+        let n = d.tables.length + 1;
+        while (d.tables.some((t) => t.id === `T${n}`)) n++;
+        id = `T${n}`;
+      }
+      if (d.tables.some((t) => t.id === id)) throw bad('A table with that code already exists');
+      const table = { id, label, seats: int(req.body.seats, 1, 30, 4) };
+      d.tables.push(table);
+      return { ...table, url: tableUrl(req, d, table.id) };
+    });
+    res.status(201).json(out);
+  }));
 
-  admin.delete('/tables/:id', (req, res) => {
-    const d = db();
-    const idx = d.tables.findIndex((t) => t.id === req.params.id);
-    if (idx < 0) throw new HttpError(404, 'Table not found');
-    d.tables.splice(idx, 1);
-    store.save();
+  admin.delete('/tables/:id', h(async (req, res) => {
+    await mutate((d) => {
+      const idx = d.tables.findIndex((t) => t.id === req.params.id);
+      if (idx < 0) throw new HttpError(404, 'Table not found');
+      d.tables.splice(idx, 1);
+    });
     res.status(204).end();
-  });
+  }));
 
-  admin.put('/restaurant', (req, res) => {
-    const r = db().restaurant;
-    const b = req.body || {};
-    if (b.name !== undefined) { const n = str(b.name, 60); if (!n) throw bad('Name is required'); r.name = n; }
-    if (b.tagline !== undefined) r.tagline = str(b.tagline, 120);
-    if (b.currency !== undefined) r.currency = str(b.currency, 4) || '₹';
-    if (b.taxRate !== undefined) r.taxRate = Math.min(50, Math.max(0, Number(b.taxRate) || 0));
-    if (b.serviceCharge !== undefined) r.serviceCharge = Math.min(50, Math.max(0, Number(b.serviceCharge) || 0));
-    if (b.accent !== undefined) r.accent = hexColor(b.accent, r.accent);
-    if (b.publicUrl !== undefined) r.publicUrl = safeUrl(b.publicUrl).replace(/\/+$/, '');
-    if (b.wifi !== undefined) r.wifi = str(b.wifi, 80);
-    if (b.hours !== undefined) r.hours = str(b.hours, 60);
-    store.save(); menuChanged();
+  admin.put('/restaurant', h(async (req, res) => {
+    const r = await mutate((d) => {
+      const r = d.restaurant;
+      const b = req.body || {};
+      if (b.name !== undefined) { const n = str(b.name, 60); if (!n) throw bad('Name is required'); r.name = n; }
+      if (b.tagline !== undefined) r.tagline = str(b.tagline, 120);
+      if (b.currency !== undefined) r.currency = str(b.currency, 4) || '₹';
+      if (b.taxRate !== undefined) r.taxRate = Math.min(50, Math.max(0, Number(b.taxRate) || 0));
+      if (b.serviceCharge !== undefined) r.serviceCharge = Math.min(50, Math.max(0, Number(b.serviceCharge) || 0));
+      if (b.accent !== undefined) r.accent = hexColor(b.accent, r.accent);
+      if (b.publicUrl !== undefined) r.publicUrl = safeUrl(b.publicUrl).replace(/\/+$/, '');
+      if (b.wifi !== undefined) r.wifi = str(b.wifi, 80);
+      if (b.hours !== undefined) r.hours = str(b.hours, 60);
+      return r;
+    });
+    menuChanged();
     res.json(r);
-  });
+  }));
 
-  admin.post('/reset', (req, res) => {
-    store.reset(); menuChanged();
+  admin.post('/reset', h(async (req, res) => {
+    await store.reset(); menuChanged();
     res.json({ ok: true });
-  });
+  }));
 
   app.use('/api/admin', admin);
   app.use('/api', (req, res, next) => next(new HttpError(404, 'Not found')));
