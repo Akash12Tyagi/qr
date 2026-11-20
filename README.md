@@ -10,7 +10,16 @@ Printed table standees with a QR code that open a **live, orderable menu in the 
 
 ## Features
 
-**Guest menu** (`/menu?t=T1`, mobile first)
+**The Menu Book** (`/menu?t=T1`, default view) — the menu as a cinematic, page-turning book:
+- Title sequence: the restaurant's name writes itself in, then the book rises off a walnut table into a warm spotlight (once per visit; skipped with reduced motion)
+- Oxblood book-cloth cover with animated gold foil and a monogram; an endpaper bookplate ("This menu belongs to Table 3")
+- **Scroll to turn pages** (also swipe, ← / → keys, or tap a page edge). Pages bend and catch the light as they lift; the page stack thins as you read
+- Every spread pairs a framed "plate print" (gallery-style frame and mat) with an editorial menu page: chapter numerals, dotted price leaders, chef's picks, spice and prep time, a "Sold out" stamp
+- Contents page with page numbers, chef's pairing tailpieces on short pages, and a "Fin." colophon to review the order or call the waiter
+- Film grain, dust motes in the light, a gold reading-progress line; text stays razor-sharp at rest
+- Design language follows the reference brief: paper `#f6f4ee`, ink `#111110`, frame `#191917`, small-caps monospace labels, physical easing
+
+**List view** (one tap from the book) — the fast, searchable version
 - Brand header with table badge, hours and Wi‑Fi
 - Search with highlighting, Veg / Popular / Mild filters, sticky category tabs with scroll-spy
 - "Chef's picks" carousel with 3D tilt cards

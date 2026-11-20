@@ -1,4 +1,5 @@
 import { $, $$, esc, api, toast, fmtMoney, storage, dishArt, dietIcon, webglAvailable, prefersReducedMotion } from './common.js';
+import { createBook } from './book.js';
 
 // ---------------- state ----------------
 const params = new URLSearchParams(location.search);
@@ -11,6 +12,8 @@ let cart = [];            // [{ id, qty, note }]
 let myOrders = storage.get('qm:orders', []); // [{ id, number, at }]
 const cur = () => menu.restaurant.currency || '₹';
 const byId = (id) => menu.items.find((i) => i.id === id);
+let book = null;
+let view = storage.get('qm:view', 'book') === 'list' ? 'list' : 'book';
 
 // ---------------- boot ----------------
 init().catch((e) => {
@@ -38,11 +41,66 @@ async function init() {
   wireUi();
   refreshOrdersPip();
   setupScrollSpy();
+  setupBook();
   // Re-sync menu (e.g. sold-out items) when the guest comes back to the tab.
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
-    try { menu = await api('/api/menu'); renderPicks(); renderSections(); renderCart(); } catch { /* offline: keep old */ }
+    try { menu = await api('/api/menu'); renderPicks(); renderSections(); renderCart(); book?.update(menu); } catch { /* offline: keep old */ }
   });
+}
+
+// ---------------- the menu book ----------------
+function setupBook() {
+  let lastPage = -1;
+  book = createBook({
+    root: $('#bookRoot'),
+    host: $('#bookView'),
+    menu,
+    table,
+    reduced: prefersReducedMotion(),
+    cur,
+    money: (n) => fmtMoney(n, cur()),
+    dishArt,
+    dietIcon,
+    itemControl,
+    onAction: (act) => {
+      if (act === 'cart') $('#cartbar').click();
+      if (act === 'waiter') callStaff('waiter');
+    },
+    onPage: (i, pg, n) => {
+      if (i === lastPage || !pg) return;
+      lastPage = i;
+      $('#bkFolio').textContent = i === 0 ? 'Cover' : `Page ${i} of ${n - 1}`;
+      $('#bkChapter').textContent = pg.kind === 'cover' ? menu.restaurant.name
+        : pg.kind === 'contents' ? 'Contents'
+          : pg.kind === 'menu' ? `${pg.chapter.icon || ''} ${pg.chapter.name}`.trim() : 'Fin.';
+    },
+  });
+  book.render();
+  setView(view, true);
+}
+
+function setView(v, first) {
+  view = v === 'list' ? 'list' : 'book';
+  storage.set('qm:view', view);
+  document.documentElement.dataset.view = view;
+  if (view === 'book') {
+    book.activate();
+    if (first) book.intro();
+    if (!first) window.scrollTo(0, 0);
+  } else {
+    book.deactivate();
+    window.scrollTo(0, 0);
+    setupScrollSpy();
+  }
+}
+
+async function callStaff(reason) {
+  if (!table) { toast('Scan the QR on your table to call our staff.', { error: true }); return; }
+  try {
+    await api('/api/calls', { method: 'POST', body: { table: table.id, reason } });
+    toast('Our team has been notified — someone will be right with you.', { icon: '🛎️', ms: 3500 });
+  } catch (err) { toast(err.message, { error: true }); }
 }
 
 function applyBranding() {
@@ -57,6 +115,9 @@ function applyBranding() {
   info.push(`<span class="chip">🌱 Veg / non-veg marked</span>`);
   $('#infoRow').innerHTML = info.join('');
   const tb = $('#tableBadge');
+  const bt = $('#bkTable');
+  bt.lastElementChild.textContent = table ? table.label : 'Browsing';
+  bt.classList.toggle('on', !!table);
   if (table) {
     tb.classList.add('on');
     $('#tableText').textContent = `${table.label} · ordering on`;
@@ -192,6 +253,7 @@ function renderCart() {
   $('#cbTotal').textContent = fmtMoney(t.subtotal, cur());
   $('#cbItems').textContent = `${t.count} item${t.count === 1 ? '' : 's'}${table ? '' : ' · browsing'}`;
   $('#cartbar').classList.toggle('show', t.count > 0);
+  document.body.classList.toggle('has-cart', t.count > 0);
 
   $('#cartLines').innerHTML = cart.length ? cart.map((l, idx) => {
     const i = byId(l.id);
@@ -237,7 +299,7 @@ async function placeOrder() {
     refreshOrdersPip();
   } catch (e) {
     toast(e.message, { error: true, ms: 4000 });
-    if (e.status === 400) { try { menu = await api('/api/menu'); renderSections(); renderCart(); } catch { /* ignore */ } }
+    if (e.status === 400) { try { menu = await api('/api/menu'); renderSections(); renderCart(); book?.update(menu); } catch { /* ignore */ } }
   } finally {
     btn.disabled = !cart.length;
     renderCart();
@@ -385,6 +447,7 @@ async function openTracker(orderId) {
 
 function refreshOrdersPip() {
   $('#ordersBtn').classList.toggle('hidden', !myOrders.length);
+  $('#bkOrders').classList.toggle('hidden', !myOrders.length);
 }
 
 // ---------------- interactions ----------------
@@ -424,7 +487,7 @@ function wireUi() {
   $('#scrim').addEventListener('click', () => closeSheets());
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeSheets(); toggleFab(false); }
-    if (e.key === 'Enter' && e.target.matches?.('.item, .pick')) openItem(e.target.dataset.open);
+    if (e.key === 'Enter' && e.target.matches?.('.item, .pick, .bk-row')) openItem(e.target.dataset.open);
   });
 
   // Search & filters
@@ -477,8 +540,12 @@ function wireUi() {
   });
   $('#placeBtn').addEventListener('click', placeOrder);
 
-  // Orders + theme
+  // Orders + theme + view
   $('#ordersBtn').addEventListener('click', () => openTracker());
+  $('#bkOrders').addEventListener('click', () => openTracker());
+  $('#bkToc').addEventListener('click', () => book?.goTo(1));
+  $('#toList').addEventListener('click', () => setView('list'));
+  $('#toBook').addEventListener('click', () => setView('book'));
   $('#themeBtn').addEventListener('click', () => {
     const now = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = now;
@@ -491,10 +558,7 @@ function wireUi() {
     const b = e.target.closest('[data-call]');
     if (!b || !table) return;
     toggleFab(false);
-    try {
-      await api('/api/calls', { method: 'POST', body: { table: table.id, reason: b.dataset.call } });
-      toast('Our team has been notified — someone will be right with you.', { icon: '🛎️', ms: 3500 });
-    } catch (err) { toast(err.message, { error: true }); }
+    callStaff(b.dataset.call);
   });
   document.addEventListener('click', (e) => { if (!e.target.closest('.fab-wrap')) toggleFab(false); });
   // make list items keyboard reachable
