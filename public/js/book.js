@@ -13,21 +13,17 @@
 
 import { esc } from './common.js';
 import { posterUrl, platedUrl } from './dishart.js';
+import { thumbOf } from './common.js';
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
 const PER_PAGE = 4;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (t) => t * t * t * (t * (t * 6 - 15) + 10); // smootherstep: soft lift, soft set-down
 const lerp = (a, b, t) => a + (b - a) * t;
-const roman = (i) => ROMAN[i] || String(i + 1);
+const roman = (i) => String(i + 1).padStart(2, '0'); // brand: chapters are numbered 01, 02… (matches the gallery)
 
 const CHILI = '<svg class="chili-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3.5c.8.6 1 1.6.6 2.4 2.3.7 3.9 2.9 3.4 5.6-.8 4.6-6.4 9-12.5 9-1.6 0-3-.6-3.5-1.4-.3-.6.1-1.2.8-1.3 4.9-.7 8.3-4 9.5-7.4.3-.9.1-1.8-.4-2.4.6-.9 1.6-1.4 2.6-1.2.1-.9-.2-1.8-.9-2.4l.4-.9z"/></svg>';
 const chilies = (n) => (n ? `<span class="chili" role="img" aria-label="Spice ${n} of 3">${CHILI.repeat(n)}</span>` : '');
 
-function initials(name) {
-  const words = String(name).replace(/&/g, ' ').split(/\s+/).filter((w) => /^[\p{L}]/u.test(w));
-  return (words.length > 1 ? `${words[0][0]}&${words[words.length - 1][0]}` : (words[0] || 'M').slice(0, 2)).toUpperCase();
-}
 
 export function createBook(opts) {
   const { root, reduced } = opts;
@@ -50,7 +46,6 @@ export function createBook(opts) {
   root.innerHTML = `
     <div class="bk-track" id="bkTrack"></div>
     <div class="bk-stage" id="bkStage">
-      <canvas class="bk-dust" aria-hidden="true"></canvas>
       <div class="bk-grain" aria-hidden="true"></div>
       <div class="bk-scene">
         <div class="bk-rise">
@@ -93,7 +88,7 @@ export function createBook(opts) {
 
   function plate(item, n) {
     const art = item.image
-      ? `<img class="print-img" src="${esc(item.image)}" alt="" loading="lazy">`
+      ? `<img class="print-img" src="${esc(item.image)}" alt="${esc(item.name)}" loading="lazy" decoding="async" width="640" height="800">`
       : `<img class="print-img" src="${posterUrl(item)}" alt="" loading="lazy">`;
     return `<figure class="print">
       <button class="print-frame" data-open="${esc(item.id)}" aria-label="Look closer at ${esc(item.name)}"><div class="print-mat">${art}</div></button>
@@ -116,9 +111,9 @@ export function createBook(opts) {
 
   function row(it) {
     const cur = opts.cur();
-    const thumb = it.image ? esc(it.image) : platedUrl(it, 160);
+    const thumb = it.image ? esc(thumbOf(it.image)) : platedUrl(it, 160);
     return `<article class="bk-row${it.available === false ? ' sold' : ''}" data-open="${esc(it.id)}" tabindex="0" aria-label="${esc(it.name)}, ${esc(cur)}${esc(it.price)}">
-      <img class="bk-thumb" src="${thumb}" alt="" loading="lazy">
+      <img class="bk-thumb" src="${thumb}" alt="" loading="lazy" decoding="async" width="160" height="160">
       <div class="bk-main">
         <div class="bk-line"><span class="bk-name">${esc(it.name)}</span><span class="dots"></span><span class="bk-price">${esc(opts.money(it.price))}</span></div>
         <p class="bk-desc">${esc(it.desc || '')}</p>
@@ -139,9 +134,9 @@ export function createBook(opts) {
     if (pg.kind === 'cover') {
       return `<div class="pg cover">
         <div class="cv-inner">
-          <div class="cv-mono"><span>${esc(initials(r.name))}</span></div>
+          <img class="cv-logo" src="/logo-mark.svg" width="96" height="96" alt="">
           <div class="cv-kicker">Carte du jour</div>
-          <h1 class="cv-title foil">${esc(r.name)}</h1>
+          <h1 class="cv-title foil">${esc(r.name).replace(/&amp;/, '<span class="amp">&amp;</span>')}</h1>
           <div class="cv-rule"><i></i><b>✦</b><i></i></div>
           <p class="cv-tag">${esc(r.tagline || '')}</p>
           <div class="cv-foot">${opts.table ? esc(opts.table.label) : 'Our menu'}${r.hours ? ` · ${esc(r.hours)}` : ''}</div>
@@ -205,7 +200,7 @@ export function createBook(opts) {
       return `<div class="pg endpaper">
         <div class="bookplate">
           <p class="mono">Ex libris</p>
-          <div class="bp-mono">${esc(initials(r.name))}</div>
+          <img class="bp-logo" src="/logo-mark.svg" width="64" height="64" alt="">
           <p class="bp-line">This menu belongs to</p>
           <p class="bp-table">${opts.table ? esc(opts.table.label) : 'our guests'}</p>
           <p class="bp-small">Please turn the pages gently.</p>
@@ -421,31 +416,6 @@ export function createBook(opts) {
   }
   const onResize = () => layout(false);
 
-  // ------------------------------------------------------------------ dust motes in the spotlight
-  let dustRaf = 0;
-  function startDust() {
-    if (reduced) return;
-    const c = stage.querySelector('.bk-dust');
-    const ctx = c.getContext('2d');
-    const motes = Array.from({ length: 46 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.6 + 0.4, v: Math.random() * 0.00025 + 0.00008, ph: Math.random() * 6.28 }));
-    const draw = (now) => {
-      dustRaf = requestAnimationFrame(draw);
-      if (!active || document.hidden) return;
-      const dpr = Math.min(devicePixelRatio, 1.5);
-      const w = Math.round(c.clientWidth * dpr); const h = Math.round(c.clientHeight * dpr);
-      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-      ctx.clearRect(0, 0, w, h);
-      for (const m of motes) {
-        m.y -= m.v; m.x += Math.sin(now / 2400 + m.ph) * 0.0002;
-        if (m.y < -0.02) { m.y = 1.02; m.x = Math.random(); }
-        const a = Math.max(0, 0.55 - Math.abs(m.x - 0.5) * 1.4) * (0.6 + 0.4 * Math.sin(now / 900 + m.ph));
-        ctx.fillStyle = `rgba(255,214,160,${a.toFixed(3)})`;
-        ctx.beginPath(); ctx.arc(m.x * w, m.y * h, m.r * dpr, 0, 6.283); ctx.fill();
-      }
-    };
-    dustRaf = requestAnimationFrame(draw);
-  }
-
   // ------------------------------------------------------------------ title sequence
   function intro() {
     const card = root.querySelector('#bkTitle');
@@ -482,7 +452,6 @@ export function createBook(opts) {
       stage.addEventListener('touchstart', onTouchStart, { passive: true });
       stage.addEventListener('touchend', onTouchEnd, { passive: true });
       onScroll();
-      if (!dustRaf) startDust();
     },
     deactivate() {
       active = false;

@@ -1,4 +1,4 @@
-import { $, $$, esc, api, toast, fmtMoney, storage, dishArt, dietIcon, webglAvailable, prefersReducedMotion } from './common.js';
+import { $, $$, esc, api, toast, fmtMoney, storage, dishArt, dietIcon, prefersReducedMotion } from './common.js';
 import { createBook } from './book.js';
 
 // ---------------- state ----------------
@@ -125,7 +125,6 @@ async function callStaff(reason) {
 function applyBranding() {
   const r = menu.restaurant;
   document.title = `${r.name} — Menu`;
-  if (r.accent) document.documentElement.style.setProperty('--accent', r.accent);
   $('#brandName').textContent = r.name;
   $('#tagline').textContent = r.tagline || '';
   const info = [];
@@ -342,14 +341,12 @@ function closeSheets(silent) {
   $$('.sheet.open').forEach((s) => s.classList.remove('open'));
   $('#scrim').classList.remove('show');
   document.body.style.overflow = '';
-  if (dishViewer) { dishViewer.dispose(); dishViewer = null; }
   if (trackStream) { trackStream.close(); trackStream = null; }
   openSheet = null;
   if (!silent && lastFocus) lastFocus.focus?.({ preventScroll: true });
 }
 
 // Item detail with 3D viewer
-let dishViewer = null;
 let sheetItem = null;
 let sheetQty = 1;
 async function openItem(id) {
@@ -370,19 +367,10 @@ async function openItem(id) {
   $('#isAdd').disabled = i.available === false;
   updateAddLabel();
   const stage = $('#isStage');
-  stage.classList.remove('is-3d');
-  stage.innerHTML = dishArt(i);
+  stage.innerHTML = i.image
+    ? `<img class="is-photo" src="${esc(i.image)}" alt="${esc(i.name)}" decoding="async">`
+    : dishArt(i, '', 480);
   showSheet($('#itemSheet'));
-
-  if (!i.image && webglAvailable() && !prefersReducedMotion()) {
-    try {
-      const { mountDish } = await import('./dish3d.js');
-      if (sheetItem !== i || !$('#itemSheet').classList.contains('open')) return;
-      dishViewer = mountDish(stage, i);
-      stage.classList.add('is-3d');
-      stage.insertAdjacentHTML('beforeend', '<span class="hint">Drag to turn the plate</span>');
-    } catch (e) { console.warn('3D viewer unavailable', e); }
-  }
 }
 function updateAddLabel() {
   const i = sheetItem;

@@ -11,7 +11,9 @@ const R = 16;            // wall radius
 const WALL_H = 11;
 const EYE = 3.05;        // camera height
 const ART_Y = 3.35;      // centre of the prints
-const PAPER = '#f4f2ec';
+const PAPER = '#F7F3EA';            // brand cream
+const SAFFRON = '#F4A51C';
+const INK = '#14110F';
 
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -86,47 +88,65 @@ function floorTexture() {
 
 function labelTexture(item, n, money) {
   return canvasTex(640, 240, (ctx, w, h) => {
-    ctx.fillStyle = '#fbfaf6'; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#111110';
-    ctx.font = '600 50px Fraunces, Georgia, serif';
+    ctx.fillStyle = '#FFFDF8'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = INK;
+    ctx.font = '600 46px Poppins, sans-serif';
     let name = item.name;
     while (ctx.measureText(name).width > w - 60 && name.length > 4) name = `${name.slice(0, -2)}…`;
     ctx.fillText(name, 30, 78);
-    ctx.font = 'italic 34px Newsreader, Georgia, serif';
-    ctx.fillStyle = '#5f5e5a';
+    ctx.font = '400 32px Geist, sans-serif';
+    ctx.fillStyle = '#6B6259';
     ctx.fillText(`${item.veg ? 'Vegetarian' : 'Non-veg'}${item.spice ? ` · ${['', 'mild', 'medium', 'hot'][item.spice]}` : ''}`, 30, 128);
-    ctx.font = '600 26px ui-monospace, Menlo, monospace';
-    ctx.fillStyle = '#5f5e5a';
+    ctx.font = '500 24px "Geist Mono", monospace';
+    ctx.fillStyle = '#6B6259';
     ctx.fillText(`PLATE Nº ${String(n).padStart(2, '0')}`, 30, 196);
-    ctx.fillStyle = '#b23d17';
-    ctx.font = '600 40px Fraunces, Georgia, serif';
+    ctx.font = '700 40px Poppins, sans-serif';
     const p = money(item.price);
-    ctx.fillText(p, w - 30 - ctx.measureText(p).width, 196);
+    const px = w - 30 - ctx.measureText(p).width;
+    ctx.fillStyle = SAFFRON; ctx.beginPath(); ctx.arc(px - 20, 182, 8, 0, 6.29); ctx.fill();
+    ctx.fillStyle = INK;
+    ctx.fillText(p, px, 196);
   });
 }
 
 function titleTexture(cat, count, idx) {
   return canvasTex(640, 860, (ctx, w, h) => {
-    ctx.fillStyle = '#e7e5df'; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#111110';
-    ctx.font = '600 30px ui-monospace, Menlo, monospace';
-    ctx.fillText(`CHAPTER ${idx + 1}`, 56, 96);
-    ctx.font = '600 104px Oswald, "Arial Narrow", sans-serif';
+    ctx.fillStyle = INK; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = SAFFRON; ctx.fillRect(56, 70, 34, 6);
+    ctx.font = '500 28px "Geist Mono", monospace';
+    ctx.fillText(`CHAPTER ${String(idx + 1).padStart(2, '0')}`, 104, 82);
+    ctx.fillStyle = PAPER;
+    ctx.font = '700 92px Poppins, sans-serif';
     const words = cat.name.toUpperCase().split(/\s+/);
     let y = 230; let line = '';
     for (const wd of words) {
       const test = line ? `${line} ${wd}` : wd;
-      if (ctx.measureText(test).width > w - 112 && line) { ctx.fillText(line, 56, y); y += 108; line = wd; } else line = test;
+      if (ctx.measureText(test).width > w - 112 && line) { ctx.fillText(line, 56, y); y += 100; line = wd; } else line = test;
     }
     ctx.fillText(line, 56, y);
-    ctx.font = '600 30px ui-monospace, Menlo, monospace';
-    ctx.fillStyle = '#5f5e5a';
+    ctx.font = '500 28px "Geist Mono", monospace';
+    ctx.fillStyle = '#B5ABA0';
     ctx.fillText(`${count} DISH${count === 1 ? '' : 'ES'}`, 56, y + 70);
-    ctx.fillStyle = 'rgba(17,17,16,.5)';
-    ctx.fillRect(56, h - 120, 80, 3);
-    ctx.font = 'italic 34px Newsreader, Georgia, serif';
+    ctx.fillStyle = SAFFRON;
+    ctx.font = '600 32px Poppins, sans-serif';
     ctx.fillText('Open the chapter →', 56, h - 64);
   });
+}
+
+// Load a photo as a texture, cropped to cover the print's aspect ratio.
+const loader = new THREE.TextureLoader();
+let onPhotoLoaded = () => {};
+function loadPhoto(url, aspect, mat, placeholder) {
+  loader.load(url, (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const ia = tex.image.width / tex.image.height;
+    if (ia > aspect) { tex.repeat.set(aspect / ia, 1); tex.offset.set((1 - aspect / ia) / 2, 0); }
+    else { tex.repeat.set(1, ia / aspect); tex.offset.set(0, (1 - ia / aspect) / 2); }
+    mat.map = tex; mat.needsUpdate = true;
+    placeholder.dispose();
+    onPhotoLoaded();
+  }, undefined, () => { /* keep the illustration */ });
 }
 
 export async function mountGallery(container, opts) {
@@ -136,14 +156,17 @@ export async function mountGallery(container, opts) {
   // Wait (briefly) for the web fonts the textures are typeset in.
   try {
     await Promise.race([
-      Promise.all(['600 64px Oswald', '600 48px Fraunces', 'italic 32px Newsreader'].map((f) => document.fonts.load(f))),
+      Promise.all(['700 64px Poppins', '600 48px Poppins', '400 32px Geist', '500 24px "Geist Mono"'].map((f) => document.fonts.load(f))),
       new Promise((r) => setTimeout(r, 1800)),
     ]);
   } catch { /* fonts optional */ }
 
   const lite = Math.min(window.innerWidth, window.innerHeight) < 700 || (navigator.hardwareConcurrency || 8) <= 4;
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: lite ? 'low-power' : 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lite ? 1.5 : 1.75));
+  const dpr = window.devicePixelRatio || 1;
+  // High-density screens are already smooth-edged: skip MSAA there (it's the costliest pass).
+  const renderer = new THREE.WebGLRenderer({ antialias: dpr < 1.5, alpha: false, powerPreference: lite ? 'low-power' : 'high-performance' });
+  let pixelRatio = Math.min(dpr, lite ? 1.25 : 1.5);
+  renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   // A bright, mostly unlit room: no filmic tone mapping (it would grey out pure whites).
   renderer.toneMapping = THREE.NoToneMapping;
@@ -195,7 +218,7 @@ export async function mountGallery(container, opts) {
   const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.85 });
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x151514, roughness: 0.5, metalness: 0.2 });
   const matMat = new THREE.MeshBasicMaterial({ color: 0xfdfcf8 });
-  const cardMat = new THREE.MeshBasicMaterial({ color: 0xe4e2dc });
+  const cardMat = new THREE.MeshBasicMaterial({ color: 0x14110f });
   const hits = [];
 
   exhibits.forEach((ex, k) => {
@@ -231,10 +254,13 @@ export async function mountGallery(container, opts) {
       const mat = new THREE.Mesh(new THREE.PlaneGeometry(W + M * 2, H + M * 2), matMat);
       mat.position.z = 0.041;
       art.add(mat);
-      const poster = new THREE.CanvasTexture(drawPoster(ex.item, 512, 640));
+      const poster = new THREE.CanvasTexture(drawPoster(ex.item, 256, 320));
       poster.colorSpace = THREE.SRGBColorSpace;
-      poster.anisotropy = 8;
-      const print = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: poster }));
+      const printMat = new THREE.MeshBasicMaterial({ map: poster });
+      const print = new THREE.Mesh(new THREE.PlaneGeometry(W, H), printMat);
+      // bundled photos have a 480×600 gallery size — prints are never drawn larger than that
+      const src = /^\/img\/dishes\/[\w-]+\.jpg$/.test(ex.item.image || '') ? ex.item.image.replace(/\.jpg$/, '-md.jpg') : ex.item.image;
+      if (src) loadPhoto(src, W / H, printMat, poster);
       print.position.z = 0.043;
       art.add(print);
       const label = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.47), new THREE.MeshBasicMaterial({ map: labelTexture(ex.item, ex.n, money) }));
@@ -346,12 +372,33 @@ export async function mountGallery(container, opts) {
 
   // ------------------------------------------------------------------ loop
   let dirty = true;
+  onPhotoLoaded = () => { dirty = true; loop(); };
   let running = false;
   let visible = true;
   let lastCaption = -1;
   const clock = new THREE.Clock();
   const tmpPos = new THREE.Vector3();
   const tmpLook = new THREE.Vector3();
+
+  // Adaptive quality governor: while walking, watch real frame intervals; if this device
+  // can't hold ~45fps, step the render resolution down (never below 0.75x) so motion
+  // stays fluid. Strong devices never trigger it.
+  let govSamples = [];
+  let govLast = 0;
+  function govern(now, moving) {
+    if (!moving) { govLast = 0; return; }
+    if (govLast) govSamples.push(now - govLast);
+    govLast = now;
+    if (govSamples.length < 24) return;
+    govSamples.sort((a, b) => a - b);
+    const median = govSamples[12];
+    govSamples = [];
+    if (median > 22 && pixelRatio > 0.75) {
+      pixelRatio = Math.max(0.75, +(pixelRatio - 0.25).toFixed(2));
+      renderer.setPixelRatio(pixelRatio);
+      resize();
+    }
+  }
 
   function tick() {
     if (!visible || document.hidden) { running = false; return; }
@@ -375,7 +422,7 @@ export async function mountGallery(container, opts) {
         moving = true;
       }
     }
-    if (!moving) return; // nothing changed: skip the GPU work
+    if (!moving) { govern(0, false); return; } // nothing changed: skip the GPU work
 
     const w = walkPose(u);
     if (focusT > 0 && (focusEx || lastFocus)) {
@@ -386,6 +433,7 @@ export async function mountGallery(container, opts) {
     } else { tmpPos.copy(w.pos); tmpLook.copy(w.look); }
     camera.position.copy(tmpPos);
     camera.lookAt(tmpLook);
+    govern(performance.now(), true);
     renderer.render(scene, camera);
     dirty = false;
 

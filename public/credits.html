@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F7F3EA">
+  <title>Photo Credits</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/brand.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: var(--cream); color: var(--ink); font: 400 15px/1.6 var(--font-body); -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 80px; }
+    header { display: flex; align-items: center; justify-content: space-between; height: 64px; border-bottom: 1px solid var(--line-ink); margin-bottom: 48px; }
+    header a { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    h1 { margin: 0 0 10px; font: 700 var(--t-h1)/1.04 var(--font-display); letter-spacing: -.04em; }
+    .intro { max-width: 60ch; color: var(--stone); margin: 0 0 36px; }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+    li { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: center; padding: 12px; background: #FFFDF8; border: 1px solid var(--line-ink); border-radius: 6px; }
+    li img { width: 72px; height: 72px; border-radius: 4px; object-fit: cover; }
+    li b { display: block; font: 600 15px/1.25 var(--font-display); letter-spacing: -.01em; }
+    li span { display: block; font-size: 13px; color: var(--stone); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header><a href="/"><img src="/logo-mark.svg" width="30" height="30" alt=""><span class="wordmark">Ember <span class="amp">&amp;</span> Saffron</span></a><a class="label" href="/brand">Brand</a></header>
+    <span class="label" style="color:var(--saffron-text)">Photography</span>
+    <h1>Photo credits</h1>
+    <p class="intro">Our dish photographs are real food, shared by photographers under Creative Commons licences and found through Openverse. Thank you to every one of them. Photos are cropped to our 4:5 and 1:1 formats; cropped versions of CC BY-SA photos are shared under the same licence.</p>
+    <ul id="list"><li>Loading…</li></ul>
+  </div>
+  <script type="module">
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const safe = (u) => (/^https?:\/\//.test(u || '') ? esc(u) : '#');
+    try {
+      const [credits, menu] = await Promise.all([fetch('/img/dishes/credits.json').then((r) => r.json()), fetch('/api/menu').then((r) => r.json())]);
+      const name = (id) => menu.items.find((i) => i.id === id)?.name || id;
+      document.getElementById('list').innerHTML = credits.map((c) => `
+        <li><img src="/img/dishes/${esc(c.id)}-sq.jpg" alt="" loading="lazy" width="72" height="72">
+          <div><b>${esc(name(c.id))}</b>
+            <span>“${esc(c.title || 'Untitled')}” by <a href="${safe(c.creatorUrl)}" rel="noopener">${esc(c.creator || 'unknown')}</a></span>
+            <span><a href="${safe(c.licenseUrl)}" rel="noopener">${esc(c.license)}</a> · <a href="${safe(c.source)}" rel="noopener">source</a></span></div></li>`).join('');
+    } catch { document.getElementById('list').innerHTML = '<li>Credits unavailable.</li>'; }
+  </script>
+</body>
+</html>

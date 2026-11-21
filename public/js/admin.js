@@ -49,7 +49,6 @@ async function loadState() {
     state = await call('/api/admin/state');
     $('#sideName').textContent = state.restaurant.name;
     document.title = `${state.restaurant.name} · Kitchen Console`;
-    if (state.restaurant.accent) document.documentElement.style.setProperty('--accent', state.restaurant.accent);
     renderAll();
   } catch (e) {
     if (e.status === 401) { sessionStorage.removeItem('qm:pin'); location.reload(); return; }

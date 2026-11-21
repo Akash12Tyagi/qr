@@ -70,10 +70,13 @@ export const storage = {
   remove(key) { try { localStorage.removeItem(key); } catch { /* ignore */ } },
 };
 
+/** Bundled dish photos ship a small square crop next to the full image. */
+export const thumbOf = (src) => (/^\/img\/dishes\/[\w-]+\.jpg$/.test(src || '') ? src.replace(/\.jpg$/, '-sq.jpg') : src);
+
 /** Returns the HTML for a dish visual: the restaurant's photo if set, otherwise a generated illustration. */
 export function dishArt(item, cls = '', size = 240) {
-  const src = item.image ? esc(item.image) : posterUrl(item, size, Math.round(size * 1.25));
-  return `<div class="dish-art ${cls}" style="--h:${Number(item.hue) || 30}"><img src="${src}" alt="" loading="lazy"${item.image ? ' onerror="this.remove()"' : ''}></div>`;
+  const src = item.image ? esc(size > 300 ? item.image : thumbOf(item.image)) : posterUrl(item, size, Math.round(size * 1.25));
+  return `<div class="dish-art ${cls}" style="--h:${Number(item.hue) || 30}"><img src="${src}" alt="" loading="lazy" decoding="async"${item.image ? ' onerror="this.remove()"' : ''}></div>`;
 }
 
 export function dietIcon(veg) {

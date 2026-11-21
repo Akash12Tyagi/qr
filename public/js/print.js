@@ -9,9 +9,9 @@ let tables = [];
 
 function cardHtml(t) {
   const r = restaurant;
-  const qr = `<div class="qrbox"><img src="/api/qr/${encodeURIComponent(t.id)}?margin=0" alt="QR code for ${esc(t.label)}"><span class="badge">🔥</span></div>`;
-  const brand = `<div class="brand">${esc(r.name)}</div><div class="tag">Digital Menu</div>`;
-  const scan = `<div class="scan">📱 Scan to see the menu &amp; order</div><div class="steps"><span>1 · Scan</span><span>2 · Browse</span><span>3 · Order</span></div>`;
+  const qr = `<div class="qrbox"><img src="/api/qr/${encodeURIComponent(t.id)}?margin=0" alt="QR code for ${esc(t.label)}"><span class="badge" aria-hidden="true"></span></div>`;
+  const brand = `<div class="brand">${esc(r.name).replace(/&amp;/, '<span class="amp">&amp;</span>')}</div><div class="tag">Digital menu</div>`;
+  const scan = `<div class="scan">Scan to see the menu &amp; order</div><div class="steps"><span>1 · Scan</span><span>2 · Browse</span><span>3 · Order</span></div>`;
   const tbl = `<div class="table"><small>You are at</small>${esc(t.label)}</div>`;
   const wifi = r.wifi ? `<div class="wifi">Wi-Fi: ${esc(r.wifi)} · No app needed</div>` : '<div class="wifi">No app needed — just your camera</div>';
   if (style === 'tent') return `<div class="qc"><div class="col">${brand}${scan}${tbl}</div>${qr}${wifi}</div>`;
@@ -30,8 +30,6 @@ function render() {
       : group.map(cardHtml).join('');
     return `<section class="page">${inner}</section>`;
   }).join('') || '<p class="muted" style="text-align:center">No tables selected.</p>';
-  const acc = restaurant.accent || '#ff7a3d';
-  $$('.qc').forEach((c) => c.style.setProperty('--acc', acc));
   const u = new URL(location.href);
   u.searchParams.set('style', style);
   history.replaceState(null, '', u);

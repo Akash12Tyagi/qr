@@ -7,6 +7,7 @@ const QRCode = require('qrcode');
 const { createStore } = require('./db');
 const seed = require('../data/seed');
 
+const SEED_PHOTOS = Object.fromEntries(seed.items.filter((i) => i.image).map((i) => [i.id, i.image]));
 const ORDER_FLOW = ['placed', 'accepted', 'preparing', 'ready', 'served'];
 const ORDER_STATUSES = [...ORDER_FLOW, 'cancelled'];
 const CALL_REASONS = ['waiter', 'water', 'bill', 'cutlery'];
@@ -28,6 +29,8 @@ const slug = (s) => str(s, 40).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace
 const safeUrl = (u) => {
   const s = str(u, 500);
   if (!s) return '';
+  // site-relative asset paths (e.g. /img/dishes/i1.jpg) — but never protocol-relative //host
+  if (/^\/(?!\/)[\w\-./]+$/.test(s) && !s.includes('..')) return s;
   try {
     const parsed = new URL(s);
     return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.href : '';
@@ -129,7 +132,10 @@ function createApp(options = {}) {
   app.get('/api/menu', h(async (req, res) => {
     const d = await db();
     const { publicUrl, ...restaurant } = d.restaurant;
-    res.json({ restaurant, categories: d.categories, items: d.items, realtime });
+    // Dishes from the original seed get their bundled photo even in databases created
+    // before photos existed (no migration needed); an explicit image always wins.
+    const items = d.items.map((i) => (i.image || !SEED_PHOTOS[i.id] ? i : { ...i, image: SEED_PHOTOS[i.id] }));
+    res.json({ restaurant, categories: d.categories, items, realtime });
   }));
 
   app.get('/api/tables', h(async (req, res) => res.json((await db()).tables.map(({ id, label }) => ({ id, label })))));

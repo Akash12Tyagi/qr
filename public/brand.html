@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F7F3EA">
+  <title>Brand Guidelines</title>
+  <meta name="description" content="Ember & Saffron brand guidelines: logo, colour, typography, imagery and voice.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/poppins-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/brand.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: var(--cream); color: var(--ink); font: 400 16px/1.6 var(--font-body); -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); }
+    header.top { display: flex; justify-content: space-between; align-items: center; height: 64px; border-bottom: 1px solid var(--line-ink); }
+    header.top .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    header.top nav { display: flex; gap: 22px; }
+    header.top nav a { font: 500 11px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; text-decoration: none; color: var(--stone); }
+    header.top nav a:hover { color: var(--ink); }
+    .hero { padding: clamp(60px, 10vw, 130px) 0 clamp(40px, 6vw, 80px); }
+    .hero h1 { margin: 18px 0 0; font: 700 var(--t-hero)/.96 var(--font-display); letter-spacing: -.05em; max-width: 12ch; }
+    .hl { background: linear-gradient(transparent 58%, var(--saffron) 58%, var(--saffron) 84%, transparent 84%); padding: 0 .04em; }
+    .hero p { max-width: 56ch; font-size: 19px; color: var(--ink-3); margin: 26px 0 0; }
+    .kick { display: inline-flex; align-items: center; gap: 10px; color: var(--saffron-text); }
+    .kick::before { content: ''; width: 18px; height: 3px; border-radius: 2px; background: var(--saffron); }
+    section { padding: clamp(56px, 8vw, 100px) 0; border-top: 1px solid var(--line-ink); }
+    .sec-grid { display: grid; grid-template-columns: 280px 1fr; gap: clamp(24px, 5vw, 64px); }
+    .sec-grid > header h2 { margin: 14px 0 10px; font: 700 var(--t-h2)/1.05 var(--font-display); letter-spacing: -.035em; }
+    .sec-grid > header p { margin: 0; color: var(--stone); }
+    .num { font: 500 11px/1 var(--font-mono); letter-spacing: .12em; color: var(--stone); }
+
+    /* logo */
+    .logos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .logo-tile { aspect-ratio: 16 / 10; display: grid; place-items: center; border-radius: 6px; }
+    .logo-tile.on-cream { background: #FFFDF8; border: 1px solid var(--line-ink); }
+    .logo-tile.on-ink { background: var(--ink); color: var(--cream); }
+    .lockup { display: flex; align-items: center; gap: 14px; }
+    .lockup img { width: 54px; height: 54px; border-radius: 14px; }
+    .lockup .wordmark { font-size: clamp(24px, 3vw, 34px); }
+    .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+    .rule { padding: 18px; border-radius: 6px; background: #FFFDF8; border: 1px solid var(--line-ink); font-size: 14px; color: var(--ink-3); }
+    .rule b { display: block; margin-bottom: 6px; font: 600 15px/1.2 var(--font-display); color: var(--ink); }
+    .rule.dont b::before { content: '✕ '; color: var(--nonveg); }
+    .rule.do b::before { content: '✓ '; color: var(--veg); }
+
+    /* colour */
+    .swatches { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr; gap: 16px; }
+    .sw { border-radius: 6px; padding: 22px; min-height: 280px; display: flex; flex-direction: column; justify-content: space-between; }
+    .sw h3 { margin: 0; font: 700 34px/1 var(--font-display); letter-spacing: -.03em; }
+    .sw dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font: 500 12px/1.4 var(--font-mono); letter-spacing: .04em; }
+    .sw dt { opacity: .65; }
+    .sw dd { margin: 0; }
+    .sw p { margin: 10px 0 0; font-size: 14px; }
+    .sw.saffron { background: var(--saffron); color: var(--ink); }
+    .sw.ink { background: var(--ink); color: var(--cream); }
+    .sw.cream { background: #FFFDF8; border: 1px solid var(--line-ink); }
+    .ratio { display: flex; height: 44px; margin-top: 16px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line-ink); }
+    .ratio span { display: grid; place-items: center; font: 500 11px/1 var(--font-mono); letter-spacing: .1em; }
+    .tints { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 16px; }
+    .tints div { border-radius: 4px; padding: 44px 8px 8px; font: 500 10.5px/1.3 var(--font-mono); }
+
+    /* type */
+    .specimen { padding: 28px; border-radius: 6px; background: #FFFDF8; border: 1px solid var(--line-ink); }
+    .specimen + .specimen { margin-top: 16px; }
+    .specimen .meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; font: 500 11px/1.3 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--stone); }
+    .spec-display { margin: 0; font: 700 clamp(48px, 7vw, 92px)/.95 var(--font-display); letter-spacing: -.05em; }
+    .spec-body { margin: 0; font: 400 20px/1.55 var(--font-body); max-width: 60ch; }
+    .spec-mono { margin: 0; font: 500 14px/1.6 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+    .scale { margin-top: 16px; border-top: 1px solid var(--line-ink); }
+    .scale div { display: grid; grid-template-columns: 110px 1fr; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line-ink); }
+    .scale span { font: 500 11px/1 var(--font-mono); letter-spacing: .1em; color: var(--stone); }
+
+    /* imagery */
+    .photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .photos figure { margin: 0; }
+    .photos img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; display: block; background: var(--cream-2); }
+    .photos figcaption { margin-top: 8px; font: 500 11px/1.3 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--stone); }
+
+    /* voice + ui */
+    .voice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .voice div { padding: 22px; border-radius: 6px; background: var(--ink); color: var(--cream); }
+    .voice b { display: block; font: 600 22px/1.15 var(--font-display); color: var(--saffron); margin-bottom: 8px; letter-spacing: -.02em; }
+    .voice p { margin: 0; color: var(--stone-light); font-size: 15px; }
+    .voice q { display: block; margin-top: 14px; color: var(--cream); font-size: 15px; quotes: '“' '”'; }
+    .ui { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 28px; border-radius: 6px; background: #FFFDF8; border: 1px solid var(--line-ink); }
+    .btn-s { display: inline-flex; align-items: center; min-height: 46px; padding: 0 22px; border-radius: 999px; font: 500 11.5px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; border: 1px solid var(--ink); background: transparent; }
+    .btn-s.primary { background: var(--saffron); border-color: var(--saffron); }
+    .btn-s.dark { background: var(--ink); color: var(--cream); }
+    .price { font: 700 24px/1 var(--font-display); display: inline-flex; align-items: center; gap: 8px; }
+    .price::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--saffron); }
+    footer { padding: 40px 0 60px; border-top: 1px solid var(--line-ink); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    @media (max-width: 860px) {
+      .sec-grid, .swatches, .voice, .rules, .logos { grid-template-columns: 1fr; }
+      .photos { grid-template-columns: 1fr 1fr; }
+      .tints { grid-template-columns: repeat(3, 1fr); }
+      header.top nav { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="/"><img src="/logo-mark.svg" width="32" height="32" alt=""><span class="wordmark">Ember <span class="amp">&amp;</span> Saffron</span></a>
+      <nav><a href="#logo">Logo</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#imagery">Imagery</a><a href="#voice">Voice</a></nav>
+    </header>
+
+    <div class="hero">
+      <span class="label kick">Brand guidelines · v1</span>
+      <h1>Ink, saffron and <span class="hl">real food.</span></h1>
+      <p>Ember &amp; Saffron is a modern Indian kitchen cooked over fire. The brand is the room at night — ink-dark, warm, unhurried — lit by one colour: saffron, the spice we’re named after. Everything we make, from a printed table standee to the menu on your phone, uses the same two colours, two typefaces and honest photography.</p>
+    </div>
+
+    <section id="logo">
+      <div class="sec-grid">
+        <header><span class="num">01</span><h2>Logo</h2><p>A saffron sun with an ink flame — the ember and the spice in one mark. Pair it with the Poppins wordmark; the ampersand is always saffron.</p></header>
+        <div>
+          <div class="logos">
+            <div class="logo-tile on-cream"><div class="lockup"><img src="/logo-mark.svg" alt="Logo mark"><span class="wordmark">Ember <span class="amp">&amp;</span> Saffron</span></div></div>
+            <div class="logo-tile on-ink"><div class="lockup"><img src="/logo-mark.svg" alt=""><span class="wordmark">Ember <span class="amp">&amp;</span> Saffron</span></div></div>
+          </div>
+          <div class="rules">
+            <div class="rule do"><b>Clear space</b>Keep at least the height of the mark free on every side.</div>
+            <div class="rule do"><b>Minimum size</b>Mark 24px on screen, 8mm in print. Below that, use the mark alone.</div>
+            <div class="rule dont"><b>Never</b>Recolour, outline, add gradients or shadows, or set the wordmark in another typeface.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="colour">
+      <div class="sec-grid">
+        <header><span class="num">02</span><h2>Colour</h2><p>Two colours carry the brand. Cream is the neutral they sit on. Nothing else — no new hues, no gradients on type.</p></header>
+        <div>
+          <div class="swatches">
+            <div class="sw saffron"><div><span class="label">Brand colour 1</span><h3>Saffron</h3><p>The spice, the flame. Every primary action, every highlight, every price marker.</p></div>
+              <dl><dt>HEX</dt><dd>#F4A51C</dd><dt>RGB</dt><dd>244 · 165 · 28</dd><dt>CMYK</dt><dd>0 · 37 · 92 · 0</dd><dt>PMS</dt><dd>≈ 130 C</dd></dl></div>
+            <div class="sw ink"><div><span class="label">Brand colour 2</span><h3>Ink</h3><p>The night kitchen. Type, frames, the menu book’s cover, dark rooms.</p></div>
+              <dl><dt>HEX</dt><dd>#14110F</dd><dt>RGB</dt><dd>20 · 17 · 15</dd><dt>CMYK</dt><dd>60 · 60 · 60 · 95</dd><dt>PMS</dt><dd>≈ Black 7 C</dd></dl></div>
+            <div class="sw cream"><div><span class="label">Neutral</span><h3>Cream</h3><p>Paper, plates, daylight.</p></div>
+              <dl><dt>HEX</dt><dd>#F7F3EA</dd><dt>RGB</dt><dd>247 · 243 · 234</dd></dl></div>
+          </div>
+          <div class="ratio" aria-label="Colour proportion: 60 percent cream, 30 percent ink, 10 percent saffron">
+            <span style="flex:6;background:var(--cream)">Cream 60%</span><span style="flex:3;background:var(--ink);color:var(--cream)">Ink 30%</span><span style="flex:1.2;background:var(--saffron)">Saffron 10%</span>
+          </div>
+          <div class="tints">
+            <div style="background:var(--saffron-soft)">Saffron soft<br>#FFD27A</div>
+            <div style="background:var(--saffron-wash)">Saffron wash<br>#FCEBC6</div>
+            <div style="background:var(--saffron-text);color:var(--cream)">Saffron text<br>#8A5700</div>
+            <div style="background:var(--ink-2);color:var(--cream)">Ink 2<br>#221D19</div>
+            <div style="background:var(--stone);color:var(--cream)">Stone<br>#6B6259</div>
+            <div style="background:var(--cream-2)">Cream 2<br>#EEE7D8</div>
+          </div>
+          <div class="rules">
+            <div class="rule do"><b>Saffron is a fill</b>Use it for buttons, markers, the highlighter stroke and large type on ink.</div>
+            <div class="rule dont"><b>Small saffron text on cream</b>It fails contrast. Use Saffron text #8A5700 instead.</div>
+            <div class="rule do"><b>Veg / non-veg marks</b>Green and red are functional food-safety signals, not brand colours.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="type">
+      <div class="sec-grid">
+        <header><span class="num">03</span><h2>Typography</h2><p>Poppins speaks — headlines, prices, the wordmark. Geist explains — everything you read. Geist Mono labels the small things.</p></header>
+        <div>
+          <div class="specimen"><div class="meta"><span>Poppins · Display</span><span>Bold 700 · SemiBold 600 · tracking −4%</span></div><p class="spec-display">Butter Chicken ₹489</p></div>
+          <div class="specimen"><div class="meta"><span>Geist · Text &amp; interface</span><span>Regular 400 · Medium 500</span></div><p class="spec-body">Tandoor chicken in a velvety tomato-fenugreek makhani, finished with white butter. Every dish is cooked to order over oak and charcoal.</p></div>
+          <div class="specimen"><div class="meta"><span>Geist Mono · Labels</span><span>Medium 500 · uppercase · tracking +12%</span></div><p class="spec-mono">Chapter 02 · Big plates · 20 min · Table 3</p></div>
+          <div class="scale">
+            <div><span>Hero · 112</span><b style="font:700 clamp(40px,6vw,72px)/1 var(--font-display);letter-spacing:-.05em">Small plates</b></div>
+            <div><span>H1 · 72</span><b style="font:700 clamp(32px,4.4vw,52px)/1 var(--font-display);letter-spacing:-.04em">Big plates</b></div>
+            <div><span>H2 · 44</span><b style="font:700 32px/1.1 var(--font-display);letter-spacing:-.035em">Tandoor breads</b></div>
+            <div><span>H3 · 22</span><b style="font:600 22px/1.2 var(--font-display);letter-spacing:-.02em">Dal Ember</b></div>
+            <div><span>Body · 16</span><span style="font:400 16px/1.6 var(--font-body);letter-spacing:0;color:var(--ink)">Black lentils slow-cooked overnight on the dying embers of our tandoor.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="imagery">
+      <div class="sec-grid">
+        <header><span class="num">04</span><h2>Imagery</h2><p>Real food, really served. Warm light, close crops, the plate as the hero. No stock clichés, no filters, no emoji, no illustrations standing in for dishes.</p></header>
+        <div>
+          <div class="photos" id="photos"></div>
+          <div class="rules">
+            <div class="rule do"><b>Crop 4:5</b>Portrait for prints and the menu book; 1:1 for thumbnails.</div>
+            <div class="rule do"><b>Natural light</b>Warm, directional, honest colour. The food should look like it does at the table.</div>
+            <div class="rule dont"><b>Never</b>Overlay text on the food, tint photos saffron, or use emoji as food.</div>
+          </div>
+          <p class="label" style="margin-top:18px;color:var(--stone)">Photography: Wikimedia Commons contributors — <a href="/credits">full credits &amp; licences</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="voice">
+      <div class="sec-grid">
+        <header><span class="num">05</span><h2>Voice &amp; interface</h2><p>Warm, plain and brief — like a good host. We describe food precisely and let the kitchen do the boasting.</p></header>
+        <div>
+          <div class="voice">
+            <div><b>Warm</b><p>Speak to one guest at one table.</p><q>We’ll bring it to Table 3.</q></div>
+            <div><b>Precise</b><p>Ingredients and method, never adjectives for their own sake.</p><q>Smoked over oak embers, mint chutney.</q></div>
+            <div><b>Brief</b><p>Short sentences. Labels in mono caps.</p><q>Sold out tonight.</q></div>
+          </div>
+          <div class="ui" style="margin-top:16px">
+            <span class="btn-s primary">Open the menu</span>
+            <span class="btn-s">Step back</span>
+            <span class="btn-s dark">Kitchen console</span>
+            <span class="price">₹329</span>
+            <span class="label kick">Chapter 01</span>
+            <span style="font:700 28px/1 var(--font-display);letter-spacing:-.03em"><span class="hl">Highlighter</span> stroke</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer><span class="wordmark">Ember <span class="amp">&amp;</span> Saffron</span><span class="label" style="color:var(--stone)">Saffron #F4A51C · Ink #14110F · Poppins · Geist</span></footer>
+  </div>
+  <script type="module">
+    try {
+      const { items } = await (await fetch('/api/menu')).json();
+      const pick = ['i5', 'i12', 'i1', 'i15', 'i3', 'i17', 'i9', 'i19'];
+      const list = pick.map((id) => items.find((i) => i.id === id)).filter((i) => i && i.image);
+      const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      document.getElementById('photos').innerHTML = list.map((i) => `<figure><img src="${esc(i.image)}" alt="${esc(i.name)}" loading="lazy" decoding="async" width="400" height="500"><figcaption>${esc(i.name)}</figcaption></figure>`).join('');
+    } catch { /* photos are illustrative only */ }
+  </script>
+</body>
+</html>

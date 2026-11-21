@@ -126,7 +126,7 @@ test('admin CRUD: dishes, categories, tables, settings, stats', async () => {
 
   const s = await req('/api/admin/restaurant', { method: 'PUT', pin: PIN, body: { name: 'New Name', accent: 'red', publicUrl: 'https://menu.example.in/' } });
   assert.equal(s.json.name, 'New Name');
-  assert.equal(s.json.accent, '#ff7a3d', 'invalid colours rejected');
+  assert.equal(s.json.accent, '#F4A51C', 'invalid colours rejected');
   const st = await req('/api/admin/state', { pin: PIN });
   assert.equal(st.json.tables[0].url, 'https://menu.example.in/menu?t=T1');
 
@@ -185,4 +185,19 @@ test('polling mode (serverless) exposes a change feed instead of SSE', async () 
     assert.equal((await fetch(`${b}/api/admin/stream?pin=${PIN}`)).status, 404);
     assert.equal((await fetch(`${b}/api/admin/changes`)).status, 401);
   } finally { srv.close(); }
+});
+
+test('brand assets, real photos and safe image paths', async () => {
+  for (const p of ['/brand', '/credits', '/css/brand.css', '/fonts/Geist-Variable.woff2', '/fonts/poppins-latin-ext-600-normal.woff2', '/logo-mark.svg']) {
+    assert.equal((await req(p)).status, 200, p);
+  }
+  const menu = (await req('/api/menu')).json;
+  assert.ok(menu.items.filter((i) => /^\/img\/dishes\/i\d+\.jpg$/.test(i.image)).length >= 20, 'seed dishes carry their photo');
+
+  const ok = await req('/api/admin/items', { method: 'POST', pin: PIN, body: { name: 'Photo test', price: 10, category: 'mains', image: '/img/dishes/i1.jpg' } });
+  assert.equal(ok.json.image, '/img/dishes/i1.jpg', 'site-relative image paths are allowed');
+  const evil = await req('/api/admin/items', { method: 'POST', pin: PIN, body: { name: 'Evil', price: 10, category: 'mains', image: '//evil.example/x.jpg' } });
+  assert.equal(evil.json.image, '', 'protocol-relative URLs are rejected');
+  const trav = await req('/api/admin/items', { method: 'POST', pin: PIN, body: { name: 'Trav', price: 10, category: 'mains', image: '/img/../../etc/passwd' } });
+  assert.equal(trav.json.image, '', 'path traversal is rejected');
 });

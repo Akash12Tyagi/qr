@@ -8,6 +8,20 @@ Printed table standees with a QR code that open a **live, orderable menu in the 
                                               └───── live status updates ◀───────┘
 ```
 
+## Brand — “Ink & Saffron”
+
+One brand direction runs through every surface (landing, menu book, list view, kitchen console, printed standees). The full guide lives at **`/brand`**; tokens are in `public/css/brand.css`.
+
+| | |
+|---|---|
+| **Saffron** `#F4A51C` | the spice and the flame — primary actions, price markers, the highlighter stroke, large type on ink |
+| **Ink** `#14110F` | the night kitchen — type, frames, the menu-book cover, dark rooms |
+| Cream `#F7F3EA` | the neutral (paper, plates, daylight) |
+| **Poppins** 500–700 | display: headlines, prices, the wordmark |
+| **Geist** / Geist Mono | text and interface / small uppercase labels |
+
+Rules: saffron is a fill or large-type colour (small saffron text on cream uses `--saffron-text`); no gradients on type, no italics, no emoji. Fonts are self-hosted from `public/fonts` (OFL licences included) — no third-party font requests. Dish photography is real food under Creative Commons licences via Openverse; attributions are listed at **`/credits`** (`public/img/dishes/credits.json`). Each dish ships a 4:5 photo and a 1:1 thumbnail.
+
 ## Features
 
 **The Menu Book** (`/menu?t=T1`, default view) — the menu as a cinematic, page-turning book:
@@ -39,7 +53,7 @@ Printed table standees with a QR code that open a **live, orderable menu in the 
 
 **Print studio** (`/print`): A6 acrylic standee inserts (4 per A4), fold-over table tents, or 3×3 card grid — with a 3D on-screen preview and high error-correction QR codes carrying your brand badge.
 
-**Landing page** (`/`) — a walkable 3D gallery (Three.js), in the spirit of a gallery-site rotunda: you stand in a bright, curved room and **scroll or drag to walk round**. Each menu chapter opens with a title card; every dish hangs as a framed illustrated print with a museum label in a glowing arched niche. Hover shows a "Look closer" pill; click dollies the camera up to the print and opens a detail card ("Find it in the menu book" deep-links to that chapter). Below: the menu-as-a-book, how it works, and the kitchen features with the live QR. Light editorial design, no emoji; static fallback without WebGL.
+**Landing page** (`/`) — a walkable 3D gallery (Three.js), in the spirit of a gallery-site rotunda: you stand in a bright, curved room and **scroll or drag to walk round**. Each menu chapter opens with a title card; every dish hangs as a framed photograph with a museum label in a glowing arched niche. Hover shows a "Look closer" pill; click dollies the camera up to the print and opens a detail card ("Find it in the menu book" deep-links to that chapter). Below: the menu-as-a-book, how it works, and the kitchen features with the live QR. Light editorial design on the brand palette; renders only when something moves; static fallback without WebGL.
 
 ## Quick start
 

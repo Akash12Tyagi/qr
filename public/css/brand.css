@@ -1,0 +1,62 @@
+/* ==========================================================================
+   EMBER & SAFFRON — brand foundation (shared by every page)
+   --------------------------------------------------------------------------
+   Two colours.   SAFFRON  #F4A51C  — the spice, the flame, every call to action.
+                  INK      #14110F  — the night kitchen: type, frames, dark rooms.
+   One neutral.   CREAM    #F7F3EA  — paper, plates, daylight.
+   Two typefaces. Poppins (display: headlines, prices, the wordmark)
+                  Geist    (text + interface) · Geist Mono for small labels.
+   Rules: saffron is a FILL or LARGE-TYPE colour — never small text on cream
+   (use --saffron-text for that). No italics, no emoji, no gradients on type.
+   ========================================================================== */
+
+@font-face { font-family: 'Geist'; src: url('/fonts/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Geist Mono'; src: url('/fonts/GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Poppins'; src: url('/fonts/poppins-latin-500-normal.woff2') format('woff2'); font-weight: 500; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Poppins'; src: url('/fonts/poppins-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Poppins'; src: url('/fonts/poppins-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+/* latin-ext carries the rupee sign (U+20B9) */
+@font-face { font-family: 'Poppins'; src: url('/fonts/poppins-latin-ext-500-normal.woff2') format('woff2'); font-weight: 500; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2113, U+A720-A7FF; }
+@font-face { font-family: 'Poppins'; src: url('/fonts/poppins-latin-ext-600-normal.woff2') format('woff2'); font-weight: 600; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2113, U+A720-A7FF; }
+@font-face { font-family: 'Poppins'; src: url('/fonts/poppins-latin-ext-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2113, U+A720-A7FF; }
+
+:root {
+  /* the two brand colours */
+  --saffron: #F4A51C;
+  --ink: #14110F;
+  /* tints (derived — never new hues) */
+  --saffron-soft: #FFD27A;
+  --saffron-wash: #FCEBC6;
+  --saffron-text: #8A5700;          /* saffron for small text on cream: 5.6:1 */
+  --ink-2: #221D19;
+  --ink-3: #2E2722;
+  --cream: #F7F3EA;
+  --cream-2: #EEE7D8;
+  --stone: #6B6259;                  /* secondary text on cream: 5.5:1 */
+  --stone-light: #B5ABA0;            /* secondary text on ink */
+  --line-ink: rgba(20, 17, 15, .12);
+  --line-cream: rgba(247, 243, 234, .14);
+  /* functional (not brand): Indian veg / non-veg marks */
+  --veg: #2E9B57;
+  --nonveg: #C93B2B;
+
+  --font-display: 'Poppins', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* type scale (Poppins for steps ≥ h3) */
+  --t-hero: clamp(48px, 7.4vw, 112px);
+  --t-h1: clamp(38px, 5vw, 72px);
+  --t-h2: clamp(28px, 3.2vw, 44px);
+  --t-h3: 22px;
+  --t-body: 16px;
+  --t-label: 11px;
+
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-spring: cubic-bezier(.2, .6, .35, 1);
+}
+
+/* brand primitives usable anywhere */
+.wordmark { font: 600 20px/1 var(--font-display); letter-spacing: -.02em; white-space: nowrap; }
+.wordmark .amp { color: var(--saffron); }
+.label { font: 500 var(--t-label)/1.3 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }

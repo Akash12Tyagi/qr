@@ -20,8 +20,7 @@ async function init() {
   const r = menu.restaurant;
   const initials = r.name.replace(/&/g, ' ').split(/\s+/).filter(Boolean);
   const mark = initials.length > 1 ? `${initials[0][0]}&${initials[initials.length - 1][0]}` : r.name.slice(0, 2);
-  $('#brandName').textContent = r.name;
-  $('#brandMark').textContent = mark;
+  $('#brandName').innerHTML = esc(r.name).replace(/&amp;/, '<span class="amp">&amp;</span>');
   $('#bookMono').textContent = mark;
   $('#bookTitle').textContent = r.name;
   $('#footName').textContent = `${r.name} · ${r.hours || ''}`;
