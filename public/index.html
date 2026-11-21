@@ -30,8 +30,31 @@
     </div>
   </header>
 
+
+
+  <!-- ===================== FOR KITCHENS ===================== -->
+
+    <section class="sec kitchen" id="kitchen">
+    <div class="copy">
+      <p class="mono kicker">For the kitchen</p>
+      <h2 class="display-l">A quiet, live <em>pass.</em></h2>
+      <dl class="features">
+        <div><dt>Live order board</dt><dd>New orders arrive with a chime and move from New to Served with a tap.</dd></div>
+        <div><dt>Sold out in a second</dt><dd>Switch a dish off and every open menu knows.</dd></div>
+        <div><dt>Print-ready standees</dt><dd>A6 acrylic inserts, table tents or card sheets for every table.</dd></div>
+        <div><dt>Floor calls</dt><dd>Water, cutlery, the bill — flagged by table, never missed.</dd></div>
+        <div><dt>Tonight’s numbers</dt><dd>Revenue by hour, best sellers and average ticket.</dd></div>
+        <div><dt>Runs anywhere</dt><dd>A small Node server, or Vercel with Postgres.</dd></div>
+      </dl>
+      <div class="cta"><a class="pill dark" href="/admin">Open the kitchen console</a><a class="pill" href="/print?style=standee">Preview the standees</a></div>
+    </div>
+    <figure class="qr-card">
+      <div class="qr-frame"><img id="demoQr" alt="QR code that opens the menu for Table 1" width="220" height="220"></div>
+      <figcaption><span class="mono">Table 1 · scan with your phone</span><em id="lanHint">Opens the live menu on this server.</em></figcaption>
+    </figure>
+  </section>
   <!-- ===================== THE GALLERY (pinned, walk by scrolling) ===================== -->
-  <section class="gallery" id="gallery" aria-label="Gallery of dishes">
+  <!-- <section class="gallery" id="gallery" aria-label="Gallery of dishes">
     <div class="g-stage">
       <div class="g-canvas" id="gCanvas"></div>
       <div class="g-fallback" id="gFallback" hidden></div>
@@ -80,7 +103,7 @@
         <p class="mono fine">Esc or click away to step back</p>
       </aside>
     </div>
-  </section>
+  </section> -->
 
   <!-- ===================== THE BOOK ===================== -->
   <section class="sec book-sec" id="book">
@@ -120,25 +143,7 @@
   </section>
 
   <!-- ===================== FOR KITCHENS ===================== -->
-  <section class="sec kitchen" id="kitchen">
-    <div class="copy">
-      <p class="mono kicker">For the kitchen</p>
-      <h2 class="display-l">A quiet, live <em>pass.</em></h2>
-      <dl class="features">
-        <div><dt>Live order board</dt><dd>New orders arrive with a chime and move from New to Served with a tap.</dd></div>
-        <div><dt>Sold out in a second</dt><dd>Switch a dish off and every open menu knows.</dd></div>
-        <div><dt>Print-ready standees</dt><dd>A6 acrylic inserts, table tents or card sheets for every table.</dd></div>
-        <div><dt>Floor calls</dt><dd>Water, cutlery, the bill — flagged by table, never missed.</dd></div>
-        <div><dt>Tonight’s numbers</dt><dd>Revenue by hour, best sellers and average ticket.</dd></div>
-        <div><dt>Runs anywhere</dt><dd>A small Node server, or Vercel with Postgres.</dd></div>
-      </dl>
-      <div class="cta"><a class="pill dark" href="/admin">Open the kitchen console</a><a class="pill" href="/print?style=standee">Preview the standees</a></div>
-    </div>
-    <figure class="qr-card">
-      <div class="qr-frame"><img id="demoQr" alt="QR code that opens the menu for Table 1" width="220" height="220"></div>
-      <figcaption><span class="mono">Table 1 · scan with your phone</span><em id="lanHint">Opens the live menu on this server.</em></figcaption>
-    </figure>
-  </section>
+
 
   <footer class="footer">
     <span class="mono" id="footName">Ember &amp; Saffron</span>
