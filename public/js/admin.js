@@ -308,6 +308,7 @@ function orderCard(o) {
   return `<article class="ocard${fresh.has(o.id) ? ' fresh' : ''}" data-id="${esc(o.id)}">
     <div class="ocard-head"><strong>#${esc(o.number)}</strong><span class="otable">${esc(o.tableLabel)}</span></div>
     <div class="ometa">${esc(STATUS_LABEL[o.status])} · ${esc(timeAgo(o.createdAt))}${o.name ? ` · ${esc(o.name)}` : ''}</div>
+    ${o.geo ? `<div class="ometa geo-ok" title="Location checked when the order was placed">📍 At the restaurant · ${esc(o.geo.distance)} m away</div>` : ''}
     <ul class="olines">${o.items.map((l) => `<li><span class="q">${esc(l.qty)}×</span>${dietIcon(l.veg)}<span>${esc(l.name)}${l.note ? ` <small>— ${esc(l.note)}</small>` : ''}</span></li>`).join('')}</ul>
     ${o.note ? `<div class="onote">📝 ${esc(o.note)}</div>` : ''}
     <div class="ofoot">
@@ -597,12 +598,25 @@ function fillSettings() {
   for (const k of ['name', 'tagline', 'currency', 'taxRate', 'serviceCharge', 'accent', 'hours', 'wifi', 'publicUrl', 'upiId']) {
     if (f.elements[k]) f.elements[k].value = r[k] ?? '';
   }
+  const g = r.geo || {};
+  f.elements.geoEnabled.checked = Boolean(g.enabled);
+  f.elements.geoLat.value = g.lat ?? '';
+  f.elements.geoLng.value = g.lng ?? '';
+  f.elements.geoRadius.value = g.radius || 150;
 }
 $('#settingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
+  const body = Object.fromEntries(fd.entries());
+  for (const k of ['geoEnabled', 'geoLat', 'geoLng', 'geoRadius']) delete body[k];
+  body.geo = {
+    enabled: fd.has('geoEnabled'),
+    lat: String(fd.get('geoLat') || '').trim() || null,
+    lng: String(fd.get('geoLng') || '').trim() || null,
+    radius: Number(fd.get('geoRadius')) || 150,
+  };
   try {
-    const r = await call('/api/admin/restaurant', { method: 'PUT', body: Object.fromEntries(fd.entries()) });
+    const r = await call('/api/admin/restaurant', { method: 'PUT', body });
     toast('Settings saved');
     state.restaurant = r;
     await loadState();
@@ -696,4 +710,19 @@ $('#teamList').addEventListener('click', async (e) => {
     }
     renderTeam();
   } catch (err) { toast(err.message, { error: true }); }
+});
+
+// Owner stands in the restaurant and captures its position for the location check.
+$('#geoHere').addEventListener('click', () => {
+  const note = $('#geoNote');
+  if (!window.isSecureContext || !('geolocation' in navigator)) { note.textContent = 'Location needs HTTPS. Paste the coordinates instead.'; return; }
+  note.textContent = 'Getting a precise fix…';
+  navigator.geolocation.getCurrentPosition((p) => {
+    const f = $('#settingsForm');
+    f.elements.geoLat.value = p.coords.latitude.toFixed(6);
+    f.elements.geoLng.value = p.coords.longitude.toFixed(6);
+    note.textContent = `Got it (±${Math.round(p.coords.accuracy)} m). Press “Save changes”.`;
+  }, (err) => {
+    note.textContent = err.code === 1 ? 'Location permission was denied. Allow it, or paste coordinates.' : 'Couldn’t get a location. Try again near a window, or paste coordinates.';
+  }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
 });

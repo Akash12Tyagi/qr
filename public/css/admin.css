@@ -213,3 +213,10 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; }
 .new-form { display: grid; gap: 12px; }
 .new-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 640px) { .tenant, .new-form .row { grid-template-columns: 1fr; } .tenant .acts { justify-content: flex-start; } }
+
+/* location check */
+.geo-box { border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px 16px; display: grid; gap: 12px; margin: 4px 0 0; }
+.geo-box legend { font-weight: 600; padding: 0 6px; }
+.geo-box p { margin: 0; font-size: 13px; }
+.geo-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.geo-ok { color: var(--ok, #2E9B57); }

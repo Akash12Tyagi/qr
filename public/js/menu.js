@@ -7,7 +7,15 @@ import { $, $$, esc, api, toast, fmtMoney, storage, dishArt, dietIcon, thumbOf, 
 const params = new URLSearchParams(location.search);
 const SLUG = tenantSlug();
 const API = tenantApi(SLUG);                       // every call is scoped to this restaurant
-let tableId = (params.get('t') || '').toUpperCase().slice(0, 20);
+const tableMemKey = `qm:table:${SLUG}`;
+// A guest who came in through the restaurant's own QR (no table in the link) picks their
+// table once; we remember it for a few hours so Bill · Pay and Call staff keep working.
+const TABLE_MEMORY_MS = 4 * 3600_000;
+const rememberedTable = (() => {
+  const m = storage.get(tableMemKey, null);
+  return m && typeof m.id === 'string' && Date.now() - (m.at || 0) < TABLE_MEMORY_MS ? m.id : '';
+})();
+let tableId = (params.get('t') || rememberedTable || '').toUpperCase().slice(0, 20);
 let table = null;
 let menu = { restaurant: {}, categories: [], items: [] };
 const filters = { q: '', veg: false, popular: false, mild: false };
@@ -48,9 +56,11 @@ async function init() {
   menu = m;
   table = t;
   if (tableId && !table) {
-    toast('That table code was not recognised — you can still browse.', { error: true, ms: 4000 });
+    if (params.get('t')) toast('That table code was not recognised — you can still browse.', { error: true, ms: 4000 });
+    else storage.remove(tableMemKey);
     tableId = '';
   }
+  if (table && params.get('t')) storage.set(tableMemKey, { id: table.id, at: Date.now() });
   cart = storage.get(cartKey(), []).filter((l) => byId(l.id));
   applyBranding();
   renderCats();
@@ -59,7 +69,8 @@ async function init() {
   renderCart();
   wireUi();
   refreshOrdersPip();
-  if (table) { refreshBill(); setInterval(() => { if (!document.hidden && !billOpen()) refreshBill(); }, 20000); }
+  renderDockBill();
+  if (table) startBillWatch();
   const ch = params.get('ch'); // deep link to a category
   if (ch) document.getElementById(`cat-${ch}`)?.scrollIntoView();
 
@@ -84,10 +95,7 @@ function applyBranding() {
   info.push(`<span class="chip">${dietIcon(true)} Veg marked</span>`);
   $('#infoRow').innerHTML = info.join('');
   if (table) {
-    $('#tableChip').classList.add('on');
-    $('#tableText').textContent = table.label;
-    $('#heroKicker').textContent = `${table.label} · Dine-in`;
-    document.body.classList.add('has-table');
+    showTable();
   } else {
     $('#tableText').textContent = 'Browsing';
   }
@@ -249,11 +257,17 @@ async function placeOrder() {
   const tid = table ? table.id : $('#tablePick').value;
   if (!tid) { toast('Please choose your table first.', { error: true }); return; }
   const btn = $('#placeBtn');
-  btn.disabled = true; btn.textContent = 'Sending to the kitchen…';
+  btn.disabled = true;
+  let geo = null;
   try {
+    if (menu.restaurant.geoCheck) {
+      btn.textContent = 'Checking you’re at the restaurant…';
+      geo = await currentLocation();
+    }
+    btn.textContent = 'Sending to the kitchen…';
     const order = await api(`${API}/orders`, {
       method: 'POST',
-      body: { table: tid, name: $('#custName').value, note: $('#orderNote').value, items: cart.map(({ id, qty, note }) => ({ id, qty, note })) },
+      body: { table: tid, name: $('#custName').value, note: $('#orderNote').value, items: cart.map(({ id, qty, note }) => ({ id, qty, note })), location: geo },
     });
     storage.set('qm:name', $('#custName').value);
     myOrders = [{ id: order.id, number: order.number, at: order.createdAt }, ...myOrders].slice(0, 10);
@@ -264,7 +278,8 @@ async function placeOrder() {
     closeSheets();
     setTimeout(() => openTracker(order.id), 250);
     refreshOrdersPip();
-    if (table) refreshBill();
+    if (!table) await adoptTable(tid);
+    else refreshBill();
   } catch (e) {
     toast(e.message, { error: true, ms: 4000 });
     if (e.status === 400) { try { menu = await api(`${API}/menu`); renderSections(); renderCart(); } catch { /* ignore */ } }
@@ -415,11 +430,17 @@ async function refreshBill() {
 }
 function stopBillPoll() { clearInterval(billTimer); billTimer = null; }
 
+// Bill · Pay is always in the dock. Without a table yet it asks which table first.
 function renderDockBill() {
   const btn = $('#billBtn');
+  btn.classList.remove('hidden');
   const show = Boolean(bill && (bill.total > 0 || bill.payments.length));
-  btn.classList.toggle('hidden', !show);
-  if (!show) return;
+  if (!show) {
+    btn.querySelector('.db-k').textContent = table ? table.label : 'Table bill';
+    $('#billBtnAmt').textContent = 'Pay bill';
+    btn.querySelector('.db-cta').textContent = 'Open';
+    return;
+  }
   const due = bill.remaining > 0.5 ? bill.remaining : bill.total;
   $('#billBtnAmt').textContent = money(due);
   btn.querySelector('.db-k').textContent = bill.remaining > 0.5 ? (bill.paid + bill.pending > 0 ? 'Left to pay' : 'Table bill') : 'Bill';
@@ -427,7 +448,7 @@ function renderDockBill() {
 }
 
 async function openBill() {
-  if (!table) return;
+  if (!table) { await askTable('Pick your table to see its bill and pay.'); if (!table) return; }
   billSig = '';
   showSheet($('#payBillSheet'));
   $('#pbContent').innerHTML = '<div class="skeleton" style="height:220px"></div>';
@@ -741,7 +762,7 @@ function wireUi() {
 }
 
 async function callStaff(reason) {
-  if (!table) { toast('Scan the QR on your table to call our staff.', { error: true }); return; }
+  if (!table) { await askTable('Pick your table so our team knows where to come.'); if (!table) return; }
   try {
     await api(`${API}/calls`, { method: 'POST', body: { table: table.id, reason } });
     toast('Our team has been notified — someone will be right with you.', { ms: 3500 });
@@ -806,4 +827,87 @@ function confetti() {
     requestAnimationFrame(() => { s.style.transform = `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist - 150}px) rotate(${Math.random() * 360}deg)`; s.style.opacity = '0'; });
     setTimeout(() => s.remove(), 1200);
   }
+}
+
+// ============================================================ table for guests without one
+let billWatch = null;
+function startBillWatch() {
+  refreshBill();
+  if (!billWatch) billWatch = setInterval(() => { if (!document.hidden && !billOpen()) refreshBill(); }, 20000);
+}
+
+// Make `id` this guest's table: remember it, put it in the address (so a reload keeps it),
+// move the cart across, and start following the table's bill.
+async function adoptTable(id) {
+  const t = await api(`${API}/tables/${encodeURIComponent(id)}`);
+  const oldKey = cartKey();
+  table = t;
+  tableId = t.id;
+  storage.set(cartKey(), storage.get(oldKey, []));
+  if (oldKey !== cartKey()) storage.remove(oldKey);
+  storage.set(tableMemKey, { id: t.id, at: Date.now() });
+  const u = new URL(location.href);
+  u.searchParams.set('t', t.id);
+  u.searchParams.delete('src');
+  history.replaceState(null, '', u);
+  showTable();
+  renderCart();
+  renderDockBill();
+  startBillWatch();
+  return t;
+}
+
+// Ask which table the guest is at (one sheet), then carry on with what they were doing.
+let tableResolve = null;
+async function askTable(why) {
+  $('#tsWhy').textContent = why;
+  const pick = $('#tsPick');
+  showSheet($('#tableSheet'));
+  if (pick.options.length <= 1) {
+    try {
+      const tables = await api(`${API}/tables`);
+      pick.innerHTML = `<option value="">Select your table…</option>${tables.map((t) => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')}`;
+    } catch (e) { toast(e.message, { error: true }); }
+  }
+  return new Promise((resolve) => { tableResolve = resolve; });
+}
+$('#tsGo').addEventListener('click', async () => {
+  const id = $('#tsPick').value;
+  if (!id) { toast('Please choose your table.', { error: true }); return; }
+  const btn = $('#tsGo');
+  btn.disabled = true;
+  try {
+    await adoptTable(id);
+    closeSheets(true);
+    const done = tableResolve; tableResolve = null;
+    if (done) setTimeout(() => done(table), 200);
+  } catch (e) { toast(e.message, { error: true }); } finally { btn.disabled = false; }
+});
+
+// ============================================================ location check (optional, per restaurant)
+// Only when the restaurant switched it on. The browser asks the guest's permission; the
+// position goes to the server with the order and is used for one distance check — it is
+// not stored. The server decides; this only collects the reading.
+function currentLocation() {
+  return new Promise((resolve, reject) => {
+    const fail = (msg) => reject(Object.assign(new Error(msg), { status: 0 }));
+    if (!window.isSecureContext || !('geolocation' in navigator)) {
+      fail('This restaurant only takes orders from inside. Your browser can’t share your location here — please ask our staff to order.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      (err) => fail(err.code === 1
+        ? 'To order from your phone, allow location so we can confirm you’re at the restaurant (it’s only checked, never stored). Or ask our staff.'
+        : 'We couldn’t get your location. Turn on location (precise) and try again, or ask our staff.'),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  });
+}
+
+function showTable() {
+  $('#tableChip').classList.add('on');
+  $('#tableText').textContent = table.label;
+  $('#heroKicker').textContent = `${table.label} · Dine-in`;
+  document.body.classList.add('has-table');
 }

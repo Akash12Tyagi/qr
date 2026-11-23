@@ -597,3 +597,53 @@ test('production refuses to run without a session secret; platform console needs
   assert.equal((await c('/api/auth/login', { method: 'POST', body: { email: 'p@x.co', password: 'anything-at-all' } })).status, 401);
   await s.close();
 });
+
+test('optional location check: off by default, enforced by the server when on', async () => {
+  const s = await startServer();
+  const g = client(s.base);
+  const o = client(s.base);
+  await o.login(OWNER.email, OWNER.password);
+  const menu = (await g(api('/menu'))).json;
+  assert.equal(menu.restaurant.geoCheck, false, 'off by default');
+  assert.equal(menu.restaurant.geo, undefined);
+  const item = { id: menu.items[0].id, qty: 1 };
+  assert.equal((await g(api('/orders'), { method: 'POST', body: { table: 'T1', items: [item] } })).status, 201, 'existing ordering unchanged');
+
+  assert.equal((await o(adm('/restaurant'), { method: 'PUT', body: { geo: { enabled: true } } })).status, 400, 'needs coordinates');
+  assert.equal((await o(adm('/restaurant'), { method: 'PUT', body: { geo: { enabled: true, lat: 'x', lng: 77 } } })).status, 400);
+  const HERE = { lat: 28.613939, lng: 77.209023 };
+  const on = await o(adm('/restaurant'), { method: 'PUT', body: { geo: { enabled: true, ...HERE, radius: 5 } } });
+  assert.equal(on.status, 200);
+  assert.equal(on.json.geo.radius, 30, 'radius clamped to the minimum');
+  await o(adm('/restaurant'), { method: 'PUT', body: { geo: { radius: 150 } } });
+
+  const pub = (await g(api('/menu'))).json;
+  assert.equal(pub.restaurant.geoCheck, true);
+  assert.doesNotMatch(JSON.stringify(pub), /28\.6139|77\.209/, 'restaurant coordinates are not published');
+
+  const order = (location) => g(api('/orders'), { method: 'POST', body: { table: 'T2', items: [item], location } });
+  const none = await order(undefined);
+  assert.equal(none.status, 403);
+  assert.equal(none.json.code, 'location_required');
+  const far = await order({ lat: 28.7041, lng: 77.1025, accuracy: 20 }); // ~14 km away
+  assert.equal(far.json.code, 'location_outside');
+  assert.equal((await order({ lat: 28.6145, lng: 77.2096, accuracy: 5000 })).json.code, 'location_imprecise');
+  assert.equal((await order({ lat: 'abc', lng: 77.2 })).json.code, 'location_required');
+  // ~200 m away, but the phone says ±80 m: inside 150 m + slack → accepted
+  const edge = await order({ lat: HERE.lat + 0.0018, lng: HERE.lng, accuracy: 80 });
+  assert.equal(edge.status, 201);
+  const inside = await order({ lat: 28.61401, lng: 77.20910, accuracy: 15 });
+  assert.equal(inside.status, 201);
+  assert.ok(inside.json.geo.distance < 20);
+  const st = (await o(adm('/state'))).json;
+  const saved = st.orders.find((x) => x.id === inside.json.id);
+  assert.doesNotMatch(JSON.stringify(saved), /28\.614|77\.2091/, "the guest's coordinates are not stored");
+
+  // calls and bill payments are not affected
+  assert.equal((await g(api('/calls'), { method: 'POST', body: { table: 'T2', reason: 'water' } })).status, 201);
+  assert.equal((await g(api('/tables/T2/payments'), { method: 'POST', body: { mode: 'full', method: 'cash' } })).status, 201);
+
+  await o(adm('/restaurant'), { method: 'PUT', body: { geo: { enabled: false } } });
+  assert.equal((await order(undefined)).status, 201, 'switching it off restores normal ordering');
+  await s.close();
+});

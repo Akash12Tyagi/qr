@@ -105,7 +105,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M6 18a6 6 0 0 1 12 0M12 7v5M10.5 7h3"/></svg>
         </button>
       </div>
-      <button class="dock-btn billbtn hidden" id="billBtn" aria-label="View the bill and pay">
+      <button class="dock-btn billbtn" id="billBtn" aria-label="View the bill and pay">
         <span class="db-k">Bill</span><strong id="billBtnAmt">₹0</strong><span class="db-cta">Pay</span>
       </button>
       <button class="dock-btn cart" id="cartbar" aria-label="View your order">
@@ -138,6 +138,19 @@
         <button data-step="-1" aria-label="Decrease">−</button><output id="isQty">1</output><button data-step="1" aria-label="Increase">+</button>
       </div>
       <button class="btn btn-primary grow" id="isAdd">Add to order</button>
+    </div>
+  </section>
+
+  <section class="sheet" id="tableSheet" role="dialog" aria-modal="true" aria-labelledby="tsTitle">
+    <button class="sheet-close" data-close aria-label="Close">✕</button>
+    <div class="sheet-body">
+      <h2 id="tsTitle">Which table are you at?</h2>
+      <p class="muted" id="tsWhy">The table name is on the QR stand in front of you.</p>
+      <label class="field"><span>Your table</span><select class="input" id="tsPick"><option value="">Loading tables…</option></select></label>
+      <p class="muted ts-tip">Tip: scanning the code on your table picks it for you.</p>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn btn-primary grow" id="tsGo" type="button">Continue</button>
     </div>
   </section>
 

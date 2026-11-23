@@ -64,6 +64,53 @@ const safeUrl = (u) => {
 const hexColor = (c, fallback) => (/^#[0-9a-f]{6}$/i.test(String(c || '')) ? String(c) : fallback);
 const queryOf = (req) => { const i = req.originalUrl.indexOf('?'); return i < 0 ? '' : req.originalUrl.slice(i); };
 
+// ---------- optional location check ("only order when you're at the restaurant") ----------
+const GEO_RADIUS = { min: 30, max: 2000, fallback: 150 };
+const GEO_MAX_ACCURACY = 1000;   // readings vaguer than 1 km can't tell inside from outside
+const GEO_ACCURACY_SLACK = 100;  // forgive up to 100 m of the phone's own uncertainty
+const geoOn = (r) => Boolean(r && r.geo && r.geo.enabled && Number.isFinite(r.geo.lat) && Number.isFinite(r.geo.lng));
+const coord = (v, lim) => { const n = Number(v); return v !== null && v !== '' && Number.isFinite(n) && Math.abs(n) <= lim ? Math.round(n * 1e6) / 1e6 : null; };
+
+function distanceMetres(a, b) { // haversine
+  const R = 6371000;
+  const rad = (x) => (x * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function cleanGeo(input, prev = {}) {
+  const g = input && typeof input === 'object' ? input : {};
+  const lat = g.lat !== undefined ? coord(g.lat, 90) : (prev.lat ?? null);
+  const lng = g.lng !== undefined ? coord(g.lng, 180) : (prev.lng ?? null);
+  const radius = g.radius !== undefined ? int(g.radius, GEO_RADIUS.min, GEO_RADIUS.max, GEO_RADIUS.fallback) : (prev.radius || GEO_RADIUS.fallback);
+  const enabled = g.enabled !== undefined ? g.enabled === true || g.enabled === 'on' || g.enabled === 'true' : Boolean(prev.enabled);
+  if (enabled && (lat === null || lng === null)) throw new HttpError(400, 'Set the restaurant’s location (latitude and longitude) before switching on the location check.');
+  return { enabled, lat, lng, radius };
+}
+
+// Returns null when the check is off, { distance, accuracy } when the guest is inside,
+// and throws a clear 403 otherwise. The server decides — never the browser.
+function checkGuestLocation(restaurant, loc) {
+  if (!geoOn(restaurant)) return null;
+  const g = restaurant.geo;
+  const lat = loc && coord(loc.lat, 90);
+  const lng = loc && coord(loc.lng, 180);
+  if (lat === null || lng === null || lat === undefined) {
+    throw new HttpError(403, 'This restaurant takes phone orders only from inside. Please allow location access and try again, or ask our staff.', 'location_required');
+  }
+  const accuracy = Math.max(0, Number(loc.accuracy) || 0);
+  if (accuracy > GEO_MAX_ACCURACY) {
+    throw new HttpError(403, 'Your location is too imprecise to confirm you’re here. Turn on precise location and try again, or ask our staff.', 'location_imprecise');
+  }
+  const distance = distanceMetres({ lat, lng }, g);
+  if (distance - Math.min(accuracy, GEO_ACCURACY_SLACK) > g.radius) {
+    throw new HttpError(403, 'It looks like you’re not at the restaurant yet. Phone orders open once you’re here — see you soon!', 'location_outside');
+  }
+  return { distance: Math.round(distance), accuracy: Math.round(accuracy) };
+}
+
 function createApp(options = {}) {
   const env = process.env;
   const production = options.production !== undefined ? options.production : (env.NODE_ENV === 'production' || Boolean(env.VERCEL));
@@ -143,7 +190,7 @@ function createApp(options = {}) {
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self), payment=()');
     if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
     next();
@@ -453,7 +500,8 @@ function createApp(options = {}) {
   // ======================= PUBLIC (GUEST) API =======================
   tenantApi.get('/menu', h(async (req, res) => {
     const d = await db(req);
-    const { publicUrl, ...restaurant } = d.restaurant;
+    const { publicUrl, geo, ...restaurant } = d.restaurant;
+    restaurant.geoCheck = geoOn(d.restaurant); // guests only learn *that* location is checked
     // Dishes from the original seed get their bundled photo even in databases created
     // before photos existed (no migration needed); an explicit image always wins.
     const items = d.items.map((i) => (i.image || !SEED_PHOTOS[i.id] ? i : { ...i, image: SEED_PHOTOS[i.id] }));
@@ -479,6 +527,7 @@ function createApp(options = {}) {
     const body = req.body || {};
     const table = d.tables.find((t) => t.id === str(body.table, 20));
     if (!table) throw bad('Please scan the QR code on your table again — table not recognised.');
+    const geoResult = checkGuestLocation(d.restaurant, body.location);
     if (!Array.isArray(body.items) || body.items.length === 0) throw bad('Your cart is empty.');
     if (body.items.length > 50) throw bad('Too many different items in one order.');
 
@@ -516,6 +565,7 @@ function createApp(options = {}) {
       history: [{ status: 'placed', at: now }],
       ip: req.ip,
     };
+    if (geoResult) order.geo = geoResult; // distance only — the guest's coordinates are not kept
     d.orders.push(order);
     if (d.orders.length > 2000) d.orders.splice(0, d.orders.length - 2000);
     return order;
@@ -979,6 +1029,7 @@ function createApp(options = {}) {
       if (b.publicUrl !== undefined) r.publicUrl = safeUrl(b.publicUrl).replace(/\/+$/, '');
       if (b.wifi !== undefined) r.wifi = str(b.wifi, 80);
       if (b.hours !== undefined) r.hours = str(b.hours, 60);
+      if (b.geo !== undefined) r.geo = cleanGeo(b.geo, r.geo);
       if (b.upiId !== undefined) {
         const v = str(b.upiId, 100);
         if (v && !UPI_ID.test(v)) throw bad('That does not look like a UPI ID (name@bank).');

@@ -130,6 +130,17 @@
           </div>
           <label class="field"><span>UPI ID for table payments</span><input class="input" name="upiId" placeholder="yourcafe@okhdfcbank — leave blank to use your counter QR"></label>
           <label class="field"><span>Public URL for QR codes</span><input class="input" name="publicUrl" type="url" placeholder="https://menu.yourcafe.in  (leave blank to use this server’s address)"></label>
+          <fieldset class="geo-box">
+            <legend>Order only from inside the restaurant</legend>
+            <p class="muted">When on, a guest’s phone must share its location when they place an order, and the server accepts it only within the distance below. Browsing the menu, calling staff and paying the bill are not affected. Guests’ coordinates are checked, never stored.</p>
+            <label class="check"><input type="checkbox" name="geoEnabled"> Check the guest is at the restaurant before an order reaches the kitchen</label>
+            <div class="row3">
+              <label class="field"><span>Latitude</span><input class="input" name="geoLat" inputmode="decimal" placeholder="e.g. 28.613939"></label>
+              <label class="field"><span>Longitude</span><input class="input" name="geoLng" inputmode="decimal" placeholder="e.g. 77.209023"></label>
+              <label class="field"><span>Allowed distance (m)</span><input class="input" name="geoRadius" type="number" min="30" max="2000" step="10"></label>
+            </div>
+            <div class="geo-actions"><button class="btn btn-sm" type="button" id="geoHere">Use this device’s location</button><span class="muted" id="geoNote">Stand inside the restaurant and tap — or paste coordinates from Google Maps (right-click the spot).</span></div>
+          </fieldset>
           <div class="settings-actions">
             <button class="btn btn-primary" type="submit">Save changes</button>
             <button class="btn btn-danger hidden" type="button" id="resetBtn">Reset demo data</button>

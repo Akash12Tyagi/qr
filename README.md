@@ -41,6 +41,7 @@ Rules: saffron is a fill or large-type colour (small saffron text on cream uses 
 - Smooth scrolling: no scroll listeners or smooth-scroll fights, lazy async images, `content-visibility` on long sections
 
 **Pay & split the bill** (from the dock or the order tracker)
+- **Bill · Pay is always in the dock** — guests who came in through the restaurant QR (no table in the link) pick their table once; it's remembered for a few hours, and Call staff works the same way
 - One table bill for everyone who ordered at that table, with every dish and who ordered it
 - **Whole bill**, **Split equally** (people at the table + how many shares you’re covering) or **My items** (tick your dishes; GST and service shared in proportion). Dishes someone has paid for show “Paid by …” and can’t be claimed twice
 - Pay with **UPI** (opens the guest’s UPI app with the amount when a UPI ID is set in Settings), **card** or **cash** at the table
@@ -56,6 +57,7 @@ Rules: saffron is a fill or large-type colour (small saffron text on cream uses 
 - Tables & QR: generate a QR per table, copy link, download PNG (1200px), print
 - Insights: revenue today, orders, avg ticket, revenue by hour, top dishes
 - Settings: name, tagline, currency, GST %, service %, hours, Wi‑Fi, UPI ID, public URL for QR codes
+- **Order only from inside the restaurant** (optional, off by default): the guest's phone shares its location when ordering and the server accepts the order only within the distance you set. Coordinates are checked, never stored. Details: [`docs/LOCATION_CHECK.md`](docs/LOCATION_CHECK.md)
 - **Team**: owners add staff by email (a temporary password is shown once; they set their own at first sign-in), reset passwords, change roles, remove people (signed out instantly). **Staff** run orders, bills, waiter calls and the sold-out switch; only **owners** edit the menu, tables, settings and team
 
 **Platform console** (`/platform`, platform owner only)

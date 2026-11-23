@@ -14,6 +14,9 @@ module.exports = {
     wifi: 'EmberGuest / saffron2024',
     upiId: '',           // e.g. yourcafe@okhdfcbank — enables the "Pay with UPI app" button
     hours: '12:00 – 23:30',
+    // Optional location check: when enabled, phone orders are accepted only within `radius`
+    // metres of (lat, lng). Off by default. Coordinates never leave the server.
+    geo: { enabled: false, lat: null, lng: null, radius: 150 },
   },
   categories: [
     { id: 'starters', name: 'Small Plates', icon: '🔥' },
