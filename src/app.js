@@ -11,6 +11,10 @@ const SEED_PHOTOS = Object.fromEntries(seed.items.filter((i) => i.image).map((i)
 const ORDER_FLOW = ['placed', 'accepted', 'preparing', 'ready', 'served'];
 const ORDER_STATUSES = [...ORDER_FLOW, 'cancelled'];
 const CALL_REASONS = ['waiter', 'water', 'bill', 'cutlery'];
+const PAY_METHODS = ['upi', 'card', 'cash'];
+const SPLIT_MODES = ['full', 'equal', 'items'];
+const PAY_STATUSES = ['confirmed', 'rejected'];
+const UPI_ID = /^[\w.-]{2,64}@[A-Za-z][\w]{1,63}$/;
 
 // ---------- helpers ----------
 class HttpError extends Error {
@@ -101,7 +105,9 @@ function createApp(options = {}) {
 
   // ---------- tiny rate limiter ----------
   const hits = new Map();
+  const limitsOn = options.rateLimit !== false; // tests may switch limits off
   function rateLimit(key, max, windowMs) {
+    if (!limitsOn) return;
     const now = Date.now();
     const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
     if (arr.length >= max) throw new HttpError(429, 'Too many requests, please wait a moment.');
@@ -231,6 +237,130 @@ function createApp(options = {}) {
     res.status(201).json(result.call);
   }));
 
+  // ======================= BILLS & PAYMENTS =======================
+  // A table's open bill = its non-cancelled, unsettled orders. Guests pay it in full, split
+  // it equally, or pay for their own dishes. The SERVER computes every amount. There is no
+  // card gateway, so each payment is "pending" until staff confirm the money arrived; when
+  // confirmed payments cover the bill the table settles (orders marked paid, bill closed).
+  const openOrders = (d, tableId) => d.orders.filter((o) => o.table === tableId && o.status !== 'cancelled' && !o.settled);
+  const openPayments = (d, tableId) => d.payments.filter((p) => p.table === tableId && !p.settled);
+  const publicPayment = (p) => { const { ip, ...rest } = p; return rest; };
+  const sumOf = (list, f) => money(list.reduce((acc, x) => acc + (Number(f(x)) || 0), 0));
+
+  function computeBill(d, table) {
+    const orders = openOrders(d, table.id);
+    const payments = openPayments(d, table.id);
+    const live = payments.filter((p) => p.status !== 'rejected');
+    const claimedBy = {};
+    for (const p of live) for (const k of p.lines || []) claimedBy[k] = p.name || 'A guest';
+    const lines = [];
+    for (const o of orders) {
+      o.items.forEach((l, idx) => {
+        const key = `${o.id}:${idx}`;
+        lines.push({ key, order: o.number, name: l.name, veg: l.veg, qty: l.qty, price: l.price, amount: money(l.price * l.qty), note: l.note || '', claimedBy: claimedBy[key] || null });
+      });
+    }
+    const total = sumOf(orders, (o) => o.total);
+    const paid = sumOf(live.filter((p) => p.status === 'confirmed'), (p) => p.amount);
+    const pending = sumOf(live.filter((p) => p.status === 'pending'), (p) => p.amount);
+    return {
+      table: { id: table.id, label: table.label },
+      currency: d.restaurant.currency || '₹',
+      taxRate: Number(d.restaurant.taxRate) || 0,
+      serviceCharge: Number(d.restaurant.serviceCharge) || 0,
+      orders: orders.map((o) => ({ id: o.id, number: o.number, status: o.status, name: o.name, total: o.total, createdAt: o.createdAt })),
+      lines,
+      subtotal: sumOf(orders, (o) => o.subtotal),
+      tax: sumOf(orders, (o) => o.tax),
+      service: sumOf(orders, (o) => o.service),
+      total,
+      paid,
+      pending,
+      remaining: money(Math.max(0, total - paid - pending)),
+      payments: payments.map(publicPayment),
+      settledAt: table.settledAt || null,
+      upi: d.restaurant.upiId ? { id: d.restaurant.upiId, name: d.restaurant.name } : null,
+    };
+  }
+
+  function createPayment(d, table, body, ip) {
+    const bill = computeBill(d, table);
+    if (bill.total <= 0) throw bad('There is nothing to pay yet — order something first.');
+    if (bill.remaining < 0.5) throw bad('This bill is already covered. Our team is confirming the payments.');
+    const method = PAY_METHODS.includes(body.method) ? body.method : null;
+    if (!method) throw bad('Choose how you would like to pay.');
+    const mode = SPLIT_MODES.includes(body.mode) ? body.mode : 'full';
+    let amount = 0; let parts = 1; let shares = 1; let lines = [];
+    if (mode === 'full') {
+      amount = bill.remaining;
+    } else if (mode === 'equal') {
+      parts = int(body.parts, 2, 30, 2);
+      shares = int(body.shares, 1, parts, 1);
+      amount = money((bill.total * shares) / parts);
+    } else {
+      const keys = new Set((Array.isArray(body.lines) ? body.lines : []).slice(0, 300).map((k) => str(k, 80)));
+      const chosen = bill.lines.filter((l) => keys.has(l.key));
+      if (!chosen.length) throw bad('Pick the dishes you are paying for.');
+      if (chosen.some((l) => l.claimedBy)) throw bad('Someone has already paid for one of those dishes. Refresh and try again.');
+      lines = chosen.map((l) => l.key);
+      // your dishes + their proportional share of GST and service
+      amount = bill.subtotal > 0 ? money((bill.total * sumOf(chosen, (l) => l.amount)) / bill.subtotal) : 0;
+    }
+    amount = money(Math.min(amount, bill.remaining));
+    if (amount <= 0) throw bad('Nothing left to pay for that selection.');
+    const now = new Date().toISOString();
+    const payment = {
+      id: crypto.randomUUID(),
+      table: table.id,
+      tableLabel: table.label,
+      mode, parts, shares, lines, amount, method,
+      name: str(body.name, 40) || 'Guest',
+      ref: str(body.ref, 40),
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now,
+      ip,
+    };
+    d.payments.push(payment);
+    if (d.payments.length > 3000) d.payments.splice(0, d.payments.length - 3000);
+    return payment;
+  }
+
+  // Close the table's bill: every open order is marked paid and settled, payments archived.
+  function settleTable(d, table) {
+    const now = new Date().toISOString();
+    const orders = openOrders(d, table.id);
+    for (const o of orders) { o.paid = true; o.settled = true; o.settledAt = now; o.updatedAt = now; }
+    for (const p of openPayments(d, table.id)) { p.settled = true; p.updatedAt = now; }
+    table.settledAt = now;
+    return orders;
+  }
+  function settleIfCovered(d, table) {
+    const bill = computeBill(d, table);
+    return bill.total > 0 && bill.paid >= bill.total - 0.5 ? settleTable(d, table) : null;
+  }
+  const findTable = (d, id) => {
+    const t = d.tables.find((x) => x.id === str(id, 20));
+    if (!t) throw new HttpError(404, 'Unknown table');
+    return t;
+  };
+
+  app.get('/api/tables/:id/bill', h(async (req, res) => {
+    const d = await db();
+    res.json(computeBill(d, findTable(d, req.params.id)));
+  }));
+
+  app.post('/api/tables/:id/payments', h(async (req, res) => {
+    rateLimit(`pay:${req.ip}`, 10, 60_000);
+    const { payment, bill } = await mutate((d) => {
+      const table = findTable(d, req.params.id);
+      const payment = createPayment(d, table, req.body || {}, req.ip);
+      return { payment, bill: computeBill(d, table) };
+    });
+    broadcast('payment:new', publicPayment(payment));
+    res.status(201).json({ payment: publicPayment(payment), bill });
+  }));
+
   // QR code for a table (SVG by default, ?format=png for a download-ready image)
   app.get('/api/qr/:tableId', async (req, res, next) => {
     try {
@@ -275,6 +405,7 @@ function createApp(options = {}) {
       now: new Date().toISOString(),
       orders: d.orders.filter((o) => new Date(o.updatedAt).getTime() >= cutoff).map(publicOrder),
       calls: d.calls.filter((c) => !c.resolved),
+      payments: d.payments.filter((p) => new Date(p.updatedAt).getTime() >= cutoff).map(publicPayment),
     });
   }));
 
@@ -289,6 +420,8 @@ function createApp(options = {}) {
       tables: d.tables.map((t) => ({ ...t, url: tableUrl(req, d, t.id) })),
       orders: d.orders.slice(-300).map(publicOrder),
       calls: d.calls.filter((c) => !c.resolved),
+      // open payments plus the last day's settled ones (for the Bills history)
+      payments: d.payments.filter((p) => !p.settled || Date.now() - new Date(p.updatedAt).getTime() < 86_400_000).slice(-400).map(publicPayment),
       baseUrl: baseUrl(req, d),
     });
   }));
@@ -343,6 +476,39 @@ function createApp(options = {}) {
     });
     broadcast('call:resolved', c);
     res.json(c);
+  }));
+
+  admin.patch('/payments/:id', h(async (req, res) => {
+    const out = await mutate((d) => {
+      const p = d.payments.find((x) => x.id === req.params.id);
+      if (!p) throw new HttpError(404, 'Payment not found');
+      if (p.settled) throw bad('That bill is already closed.');
+      const status = str(req.body && req.body.status, 20);
+      if (!PAY_STATUSES.includes(status)) throw bad('Status must be confirmed or rejected');
+      p.status = status;
+      p.updatedAt = new Date().toISOString();
+      const table = d.tables.find((t) => t.id === p.table);
+      const settled = table && status === 'confirmed' ? settleIfCovered(d, table) : null;
+      return { p, settled, tableId: p.table };
+    });
+    broadcast('payment:update', publicPayment(out.p));
+    if (out.settled) {
+      for (const o of out.settled) broadcast('order:update', publicOrder(o), o.id);
+      broadcast('bill:settled', { table: out.tableId });
+    }
+    res.json({ payment: publicPayment(out.p), settled: Boolean(out.settled) });
+  }));
+
+  admin.post('/tables/:id/settle', h(async (req, res) => {
+    const out = await mutate((d) => {
+      const table = findTable(d, req.params.id);
+      const orders = settleTable(d, table);
+      return { orders, payments: d.payments.filter((p) => p.table === table.id && p.updatedAt === table.settledAt) };
+    });
+    for (const o of out.orders) broadcast('order:update', publicOrder(o), o.id);
+    for (const p of out.payments) broadcast('payment:update', publicPayment(p));
+    broadcast('bill:settled', { table: req.params.id });
+    res.json({ ok: true, orders: out.orders.length });
   }));
 
   function cleanItem(d, body, existing = {}) {
@@ -472,6 +638,11 @@ function createApp(options = {}) {
       if (b.publicUrl !== undefined) r.publicUrl = safeUrl(b.publicUrl).replace(/\/+$/, '');
       if (b.wifi !== undefined) r.wifi = str(b.wifi, 80);
       if (b.hours !== undefined) r.hours = str(b.hours, 60);
+      if (b.upiId !== undefined) {
+        const v = str(b.upiId, 100);
+        if (v && !UPI_ID.test(v)) throw bad('That does not look like a UPI ID (name@bank).');
+        r.upiId = v;
+      }
       return r;
     });
     menuChanged();

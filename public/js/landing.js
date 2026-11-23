@@ -20,12 +20,14 @@ async function init() {
   const r = menu.restaurant;
   const initials = r.name.replace(/&/g, ' ').split(/\s+/).filter(Boolean);
   const mark = initials.length > 1 ? `${initials[0][0]}&${initials[initials.length - 1][0]}` : r.name.slice(0, 2);
-  $('#brandName').innerHTML = esc(r.name).replace(/&amp;/, '<span class="amp">&amp;</span>');
-  $('#bookMono').textContent = mark;
-  $('#bookTitle').textContent = r.name;
-  $('#footName').textContent = `${r.name} · ${r.hours || ''}`;
+  // The header wordmark is the product brand set in index.html — leave it as authored.
+  const setText = (sel, v) => { const el = $(sel); if (el) el.textContent = v; };
+  setText('#bookMono', mark);
+  setText('#bookTitle', r.name);
+  setText('#footName', `${r.name} · ${r.hours || ''}`);
   document.title = `${r.name} · The Menu`;
 
+  if (!section) return; // the 3D gallery is commented out in index.html
   if (!webglAvailable()) { fallback(); return; }
   const { mountGallery } = await import('./gallery3d.js');
   gallery = await mountGallery($('#gCanvas'), {
@@ -159,6 +161,7 @@ function wire() {
 
 // ---------------------------------------------------------------- no-WebGL fallback: a quiet strip of prints
 function fallback() {
+  if (!section) return;
   document.documentElement.classList.add('no-webgl');
   const fb = $('#gFallback');
   fb.hidden = false;
@@ -174,7 +177,8 @@ if ('IntersectionObserver' in window && !reduced) {
   const io = new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } }), { threshold: 0.15 });
   $$('.sec .copy, .sec-head, .steps li, .qr-card, .book-demo').forEach((el, i) => { el.classList.add('reveal'); el.style.transitionDelay = `${(i % 4) * 90}ms`; io.observe(el); });
 }
-// open the CSS book when it scrolls into view on touch devices (no hover)
-if ('IntersectionObserver' in window && matchMedia('(hover: none)').matches) {
-  new IntersectionObserver(([en]) => $('.b3d').classList.toggle('open', en.isIntersecting), { threshold: 0.6 }).observe($('.book-demo'));
+// open the CSS book when it scrolls into view on touch devices (no hover) — only if that section is on the page
+const bookDemo = $('.book-demo');
+if (bookDemo && 'IntersectionObserver' in window && matchMedia('(hover: none)').matches) {
+  new IntersectionObserver(([en]) => $('.b3d')?.classList.toggle('open', en.isIntersecting), { threshold: 0.6 }).observe(bookDemo);
 }

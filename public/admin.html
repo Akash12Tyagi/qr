@@ -30,6 +30,7 @@
       <a class="side-brand" href="/" title="Home"><span class="flame">🔥</span><span class="display" id="sideName">QR Menu</span></a>
       <nav class="tabs" role="tablist">
         <button role="tab" data-tab="live" aria-selected="true"><span>📡</span><b>Live orders</b><em class="count" id="liveCount"></em></button>
+        <button role="tab" data-tab="bills"><span>₹</span><b>Bills</b><em class="count" id="billsCount"></em></button>
         <button role="tab" data-tab="menu"><span>📖</span><b>Menu</b></button>
         <button role="tab" data-tab="tables"><span>🔳</span><b>Tables &amp; QR</b></button>
         <button role="tab" data-tab="insights"><span>📈</span><b>Insights</b></button>
@@ -59,6 +60,15 @@
       </section>
 
       <!-- MENU -->
+      <section class="panel hidden" id="tab-bills">
+        <header class="panel-head">
+          <div><h1 class="display">Bills &amp; payments</h1><p class="muted">Guests pay in full, split equally or pay for their own dishes. Confirm each payment when the money arrives — the table settles automatically once it’s covered.</p></div>
+        </header>
+        <div class="bills-grid" id="billsGrid"></div>
+        <h2 class="display bills-sub">Settled today</h2>
+        <div class="settled-list" id="settledList"></div>
+      </section>
+
       <section class="panel hidden" id="tab-menu">
         <header class="panel-head">
           <div><h1 class="display">Menu</h1><p class="muted">Changes go live on every guest’s phone immediately. Toggle a dish off when it sells out.</p></div>
@@ -115,6 +125,7 @@
                         <label class="field"><span>Opening hours</span><input class="input" name="hours" maxlength="60"></label>
             <label class="field"><span>Wi-Fi</span><input class="input" name="wifi" maxlength="80"></label>
           </div>
+          <label class="field"><span>UPI ID for table payments</span><input class="input" name="upiId" placeholder="yourcafe@okhdfcbank — leave blank to use your counter QR"></label>
           <label class="field"><span>Public URL for QR codes</span><input class="input" name="publicUrl" type="url" placeholder="https://menu.yourcafe.in  (leave blank to use this server’s address)"></label>
           <div class="settings-actions">
             <button class="btn btn-primary" type="submit">Save changes</button>

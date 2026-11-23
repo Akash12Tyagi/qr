@@ -9,7 +9,7 @@ let server;
 let base;
 
 test.before(async () => {
-  const app = createApp({ dbFile: null, databaseUrl: '', adminPin: PIN }); // in-memory store
+  const app = createApp({ dbFile: null, databaseUrl: '', adminPin: PIN, rateLimit: false }); // in-memory store
   await new Promise((resolve) => { server = app.listen(0, resolve); });
   base = `http://127.0.0.1:${server.address().port}`;
   server.on('close', () => app.locals.closeStreams());
@@ -200,4 +200,111 @@ test('brand assets, real photos and safe image paths', async () => {
   assert.equal(evil.json.image, '', 'protocol-relative URLs are rejected');
   const trav = await req('/api/admin/items', { method: 'POST', pin: PIN, body: { name: 'Trav', price: 10, category: 'mains', image: '/img/../../etc/passwd' } });
   assert.equal(trav.json.image, '', 'path traversal is rejected');
+});
+
+test('table bill: full, equal split and per-item payments, confirmation and settlement', async () => {
+  const menu = (await req('/api/menu')).json;
+  const avail = menu.items.filter((i) => i.available !== false);
+  const [a, b2] = [avail[2], avail[3]];
+  const T = 'T7';
+  // two friends order separately at the same table
+  const o1 = (await req('/api/orders', { method: 'POST', body: { table: T, name: 'Asha', items: [{ id: a.id, qty: 2 }] } })).json;
+  const o2 = (await req('/api/orders', { method: 'POST', body: { table: T, name: 'Ravi', items: [{ id: b2.id, qty: 1 }] } })).json;
+  let bill = (await req(`/api/tables/${T}/bill`)).json;
+  assert.equal(bill.orders.length, 2);
+  assert.equal(bill.total, Math.round((o1.total + o2.total) * 100) / 100);
+  assert.equal(bill.remaining, bill.total);
+  assert.equal(bill.lines.length, 2);
+
+  // validation
+  assert.equal((await req(`/api/tables/${T}/payments`, { method: 'POST', body: { mode: 'full' } })).status, 400, 'method required');
+  assert.equal((await req(`/api/tables/${T}/payments`, { method: 'POST', body: { mode: 'items', method: 'cash', lines: [] } })).status, 400);
+  assert.equal((await req('/api/tables/NOPE/payments', { method: 'POST', body: { mode: 'full', method: 'cash' } })).status, 404);
+
+  // Asha pays for her own dishes (+ proportional tax), price is computed by the server
+  const lineA = bill.lines.find((l) => l.name === a.name).key;
+  const pA = await req(`/api/tables/${T}/payments`, { method: 'POST', body: { mode: 'items', method: 'upi', name: 'Asha', lines: [lineA], amount: 1 } });
+  assert.equal(pA.status, 201);
+  assert.equal(pA.json.payment.amount, Math.round((bill.total * (a.price * 2)) / bill.subtotal * 100) / 100);
+  assert.equal(pA.json.payment.status, 'pending');
+  assert.equal(pA.json.payment.ip, undefined, 'never leaks IP');
+  // her dish cannot be claimed twice
+  const dup = await req(`/api/tables/${T}/payments`, { method: 'POST', body: { mode: 'items', method: 'cash', lines: [lineA] } });
+  assert.equal(dup.status, 400);
+  bill = pA.json.bill;
+  assert.equal(bill.lines.find((l) => l.key === lineA).claimedBy, 'Asha');
+  assert.equal(bill.pending, pA.json.payment.amount);
+
+  // equal split is capped at what is left
+  const pEq = await req(`/api/tables/${T}/payments`, { method: 'POST', body: { mode: 'equal', parts: 2, shares: 2, method: 'card', name: 'Ravi' } });
+  assert.equal(pEq.status, 201);
+  assert.equal(pEq.json.payment.amount, bill.remaining, 'capped at remaining');
+  assert.equal(pEq.json.bill.remaining, 0);
+  assert.equal((await req(`/api/tables/${T}/payments`, { method: 'POST', body: { mode: 'full', method: 'cash' } })).status, 400, 'nothing left to claim');
+
+  // the kitchen sees both payments and confirms them
+  const state = (await req('/api/admin/state', { pin: PIN })).json;
+  assert.equal(state.payments.filter((p) => p.table === T).length, 2);
+  assert.equal((await req(`/api/admin/payments/${pA.json.payment.id}`, { method: 'PATCH', body: { status: 'confirmed' } })).status, 401);
+  assert.equal((await req(`/api/admin/payments/${pA.json.payment.id}`, { method: 'PATCH', pin: PIN, body: { status: 'paid' } })).status, 400);
+  const c1 = await req(`/api/admin/payments/${pA.json.payment.id}`, { method: 'PATCH', pin: PIN, body: { status: 'confirmed' } });
+  assert.equal(c1.json.settled, false);
+  const c2 = await req(`/api/admin/payments/${pEq.json.payment.id}`, { method: 'PATCH', pin: PIN, body: { status: 'confirmed' } });
+  assert.equal(c2.json.settled, true, 'fully paid table settles automatically');
+
+  // the table starts fresh; the orders are marked paid
+  bill = (await req(`/api/tables/${T}/bill`)).json;
+  assert.equal(bill.total, 0);
+  assert.ok(bill.settledAt);
+  assert.equal((await req(`/api/orders/${o1.id}`)).json.paid, true);
+  assert.equal((await req(`/api/admin/payments/${pA.json.payment.id}`, { method: 'PATCH', pin: PIN, body: { status: 'rejected' } })).status, 400, 'closed bills are immutable');
+});
+
+test('rejected payments release their dishes; staff can settle a table manually', async () => {
+  const menu = (await req('/api/menu')).json;
+  const item = menu.items.find((i) => i.available !== false);
+  const T = 'T8';
+  await req('/api/orders', { method: 'POST', body: { table: T, items: [{ id: item.id, qty: 1 }] } });
+  let bill = (await req(`/api/tables/${T}/bill`)).json;
+  const p = (await req(`/api/tables/${T}/payments`, { method: 'POST', body: { mode: 'items', method: 'upi', lines: [bill.lines[0].key] } })).json.payment;
+  await req(`/api/admin/payments/${p.id}`, { method: 'PATCH', pin: PIN, body: { status: 'rejected' } });
+  bill = (await req(`/api/tables/${T}/bill`)).json;
+  assert.equal(bill.lines[0].claimedBy, null, 'rejected payment frees the dish');
+  assert.equal(bill.remaining, bill.total);
+  const s = await req(`/api/admin/tables/${T}/settle`, { method: 'POST', pin: PIN });
+  assert.equal(s.json.orders, 1);
+  assert.equal((await req(`/api/tables/${T}/bill`)).json.total, 0);
+  assert.equal((await req('/api/admin/restaurant', { method: 'PUT', pin: PIN, body: { upiId: 'not a vpa' } })).status, 400);
+  assert.equal((await req('/api/admin/restaurant', { method: 'PUT', pin: PIN, body: { upiId: 'embersaffron@okaxis' } })).json.upiId, 'embersaffron@okaxis');
+  assert.deepEqual((await req(`/api/tables/${T}/bill`)).json.upi, { id: 'embersaffron@okaxis', name: (await req('/api/menu')).json.restaurant.name });
+});
+
+test('rate limits still protect ordering in normal operation', async () => {
+  const app = createApp({ dbFile: null, databaseUrl: '' });
+  const srv = await new Promise((resolve) => { const x = app.listen(0, () => resolve(x)); });
+  const url = `http://127.0.0.1:${srv.address().port}`;
+  const menu = await (await fetch(`${url}/api/menu`)).json();
+  const body = JSON.stringify({ table: 'T1', items: [{ id: menu.items[0].id, qty: 1 }] });
+  const codes = [];
+  for (let k = 0; k < 9; k++) codes.push((await fetch(`${url}/api/orders`, { method: 'POST', headers: { 'content-type': 'application/json' }, body })).status);
+  srv.closeAllConnections?.(); await new Promise((r) => srv.close(r));
+  assert.deepEqual(codes.slice(0, 8), Array(8).fill(201));
+  assert.equal(codes[8], 429);
+});
+
+test('serverless polling feed carries payments to the kitchen', async () => {
+  const app = createApp({ dbFile: null, adminPin: PIN, realtime: 'poll', databaseUrl: '', rateLimit: false });
+  const srv = await new Promise((resolve) => { const x = app.listen(0, () => resolve(x)); });
+  const url = `http://127.0.0.1:${srv.address().port}`;
+  const j = (path, opts = {}) => fetch(url + path, { ...opts, headers: { 'content-type': 'application/json', 'x-admin-pin': PIN } }).then((r) => r.json());
+  const since = new Date().toISOString();
+  const menu = await j('/api/menu');
+  await j('/api/orders', { method: 'POST', body: JSON.stringify({ table: 'T2', items: [{ id: menu.items[0].id, qty: 1 }] }) });
+  const out = await j('/api/tables/T2/payments', { method: 'POST', body: JSON.stringify({ mode: 'full', method: 'cash', name: 'Mira' }) });
+  const ch = await j(`/api/admin/changes?since=${encodeURIComponent(since)}`);
+  srv.closeAllConnections?.(); await new Promise((r) => srv.close(r));
+  assert.equal(ch.payments.length, 1);
+  assert.equal(ch.payments[0].id, out.payment.id);
+  assert.equal(ch.payments[0].name, 'Mira');
+  assert.equal(ch.payments[0].ip, undefined);
 });

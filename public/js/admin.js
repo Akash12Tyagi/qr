@@ -40,7 +40,7 @@ async function start() {
   await loadState();
   connect();
   const initial = (location.hash || '#live').slice(1);
-  switchTab(['live', 'menu', 'tables', 'insights', 'settings'].includes(initial) ? initial : 'live');
+  switchTab(['live', 'bills', 'menu', 'tables', 'insights', 'settings'].includes(initial) ? initial : 'live');
   setInterval(() => { if (currentTab === 'live') renderBoard(); }, 30_000); // refresh "x min ago"
 }
 
@@ -56,7 +56,7 @@ async function loadState() {
   }
 }
 
-function renderAll() { renderBoard(); renderCalls(); renderMenu(); renderTables(); fillSettings(); }
+function renderAll() { state.payments = state.payments || []; renderBoard(); renderCalls(); renderBills(); renderMenu(); renderTables(); fillSettings(); }
 
 // ============ realtime ============
 function setConn(kind, text) {
@@ -78,7 +78,82 @@ function onOrderUpdate(o) {
   const idx = state.orders.findIndex((x) => x.id === o.id);
   if (idx >= 0) state.orders[idx] = o; else state.orders.push(o);
   renderBoard();
+  renderBills();
 }
+
+// ============ bills & payments ============
+const PAY_METHOD = { upi: 'UPI', card: 'Card at table', cash: 'Cash at table' };
+const payMode = (p) => (p.mode === 'equal' ? `${p.shares} of ${p.parts} shares` : p.mode === 'items' ? `own dishes (${p.lines.length})` : 'whole bill');
+function onPayment(p) {
+  const idx = state.payments.findIndex((x) => x.id === p.id);
+  const isNew = idx < 0;
+  if (isNew) state.payments.push(p); else if (state.payments[idx].updatedAt === p.updatedAt) return; else state.payments[idx] = p;
+  if (isNew && p.status === 'pending') {
+    chime(2);
+    toast(`${p.tableLabel} · ${p.name} sent ${fmtMoney(p.amount, cur())} by ${PAY_METHOD[p.method]}`, { ms: 6000 });
+  }
+  renderBills();
+}
+function openBillFor(tableId) {
+  const orders = state.orders.filter((o) => o.table === tableId && !o.settled && o.status !== 'cancelled');
+  const payments = state.payments.filter((p) => p.table === tableId && !p.settled);
+  const sum = (l, f) => Math.round(l.reduce((a, x) => a + (Number(f(x)) || 0), 0) * 100) / 100;
+  const total = sum(orders, (o) => o.total);
+  const paid = sum(payments.filter((p) => p.status === 'confirmed'), (p) => p.amount);
+  const pending = sum(payments.filter((p) => p.status === 'pending'), (p) => p.amount);
+  return { orders, payments, total, paid, pending, left: Math.max(0, Math.round((total - paid - pending) * 100) / 100) };
+}
+function renderBills() {
+  if (!state) return;
+  const cards = [];
+  let pendingCount = 0;
+  for (const t of state.tables) {
+    const b = openBillFor(t.id);
+    if (!b.orders.length && !b.payments.length) continue;
+    pendingCount += b.payments.filter((p) => p.status === 'pending').length;
+    const pct = b.total ? Math.min(100, Math.round((b.paid / b.total) * 100)) : 0;
+    cards.push(`<article class="bill-card${b.payments.some((p) => p.status === 'pending') ? ' attn' : ''}" data-table="${esc(t.id)}">
+      <header><strong class="display">${esc(t.label)}</strong><span class="muted">${b.orders.length} order${b.orders.length === 1 ? '' : 's'}</span></header>
+      <div class="bc-total"><span>${esc(fmtMoney(b.total, cur()))}</span><small>${b.left > 0 ? `${esc(fmtMoney(b.left, cur()))} left` : b.pending ? 'awaiting confirmation' : 'covered'}</small></div>
+      <div class="bc-bar"><i style="width:${pct}%"></i></div>
+      <dl class="bc-sums"><dt>Received</dt><dd>${esc(fmtMoney(b.paid, cur()))}</dd><dt>Waiting</dt><dd>${esc(fmtMoney(b.pending, cur()))}</dd></dl>
+      <ul class="bc-pays">${b.payments.length ? b.payments.map((p) => `
+        <li class="pay ${esc(p.status)}" data-id="${esc(p.id)}">
+          <div><b>${esc(p.name)}</b> · ${esc(fmtMoney(p.amount, cur()))}<br><small class="muted">${esc(PAY_METHOD[p.method])} · ${esc(payMode(p))} · ${esc(timeAgo(p.createdAt))}</small></div>
+          ${p.status === 'pending' ? '<div class="pay-acts"><button class="btn btn-sm btn-primary" data-pay="confirmed">Received</button><button class="btn btn-sm btn-ghost" data-pay="rejected" title="Not received">✕</button></div>' : `<span class="tag ${esc(p.status)}">${p.status === 'confirmed' ? 'Received' : 'Not received'}</span>`}
+        </li>`).join('') : '<li class="none muted">No payments yet</li>'}</ul>
+      <button class="btn btn-sm settle" data-settle="${esc(t.id)}">Settle table</button>
+    </article>`);
+  }
+  $('#billsGrid').innerHTML = cards.join('') || '<p class="muted">No open bills right now.</p>';
+  $('#billsCount').textContent = pendingCount || '';
+  const settled = state.payments.filter((p) => p.settled && p.status === 'confirmed').slice(-30).reverse();
+  $('#settledList').innerHTML = settled.length ? settled.map((p) => `<div class="settled-row"><span><b>${esc(p.tableLabel)}</b> · ${esc(p.name)}</span><span class="muted">${esc(PAY_METHOD[p.method])} · ${esc(payMode(p))}</span><span>${esc(fmtMoney(p.amount, cur()))}</span></div>`).join('') : '<p class="muted">Nothing settled yet today.</p>';
+}
+document.addEventListener('click', async (e) => {
+  const act = e.target.closest('#billsGrid [data-pay]');
+  if (act) {
+    const id = act.closest('.pay').dataset.id;
+    act.disabled = true;
+    try {
+      const out = await call(`/api/admin/payments/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status: act.dataset.pay } });
+      onPayment(out.payment);
+      if (out.settled) { toast(`${out.payment.tableLabel} is fully paid — table settled`); await loadState(); }
+    } catch (err) { toast(err.message, { error: true }); act.disabled = false; }
+    return;
+  }
+  const st = e.target.closest('#billsGrid [data-settle]');
+  if (st) {
+    const t = state.tables.find((x) => x.id === st.dataset.settle);
+    const b = openBillFor(st.dataset.settle);
+    const msg = b.left > 0 || b.pending > 0
+      ? `Settle ${t.label}? ${fmtMoney(b.left + b.pending, cur())} is not confirmed yet — only do this if you collected it another way.`
+      : `Close ${t.label}'s bill?`;
+    if (!confirm(msg)) return;
+    try { await call(`/api/admin/tables/${encodeURIComponent(t.id)}/settle`, { method: 'POST' }); toast(`${t.label} settled`); await loadState(); }
+    catch (err) { toast(err.message, { error: true }); }
+  }
+});
 function onCallNew(c) {
   if (state.calls.some((x) => x.id === c.id)) return;
   state.calls.push(c);
@@ -103,6 +178,8 @@ function connect() {
   es.addEventListener('order:update', (ev) => { const o = parse(ev); if (o) onOrderUpdate(o); });
   es.addEventListener('call:new', (ev) => { const c = parse(ev); if (c) onCallNew(c); });
   es.addEventListener('call:resolved', (ev) => { const c = parse(ev); if (c) onCallResolved(c); });
+  es.addEventListener('payment:new', (ev) => { const p = parse(ev); if (p) onPayment(p); });
+  es.addEventListener('payment:update', (ev) => { const p = parse(ev); if (p) onPayment(p); });
 }
 
 // Serverless hosting (e.g. Vercel) can't push, so ask for changes every few seconds.
@@ -123,6 +200,7 @@ function startPolling() {
       const open = new Set(ch.calls.map((c) => c.id));
       for (const c of state.calls.filter((x) => !open.has(x.id))) onCallResolved(c);
       for (const c of ch.calls) onCallNew(c);
+      for (const p of ch.payments || []) onPayment(p);
       setConn('on', 'Live');
     } catch (e) {
       if (e.status === 401) { sessionStorage.removeItem('qm:pin'); location.reload(); return; }
@@ -478,7 +556,7 @@ function drawHours(hours) {
 function fillSettings() {
   const f = $('#settingsForm');
   const r = state.restaurant;
-  for (const k of ['name', 'tagline', 'currency', 'taxRate', 'serviceCharge', 'accent', 'hours', 'wifi', 'publicUrl']) {
+  for (const k of ['name', 'tagline', 'currency', 'taxRate', 'serviceCharge', 'accent', 'hours', 'wifi', 'publicUrl', 'upiId']) {
     if (f.elements[k]) f.elements[k].value = r[k] ?? '';
   }
 }

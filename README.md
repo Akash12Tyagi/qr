@@ -24,26 +24,24 @@ Rules: saffron is a fill or large-type colour (small saffron text on cream uses 
 
 ## Features
 
-**The Menu Book** (`/menu?t=T1`, default view) — the menu as a cinematic, page-turning book:
-- Title sequence: the restaurant's name writes itself in, then the book rises off a walnut table into a warm spotlight (once per visit; skipped with reduced motion)
-- Oxblood book-cloth cover with animated gold foil and a monogram; an endpaper bookplate ("This menu belongs to Table 3")
-- **Scroll to turn pages** (also swipe, the ← / → buttons, arrow keys, or tap a page edge). On phones the camera visits the **left page, then the right page** of every spread, so going back always reveals the left side Pages bend and catch the light as they lift; the page stack thins as you read
-- Every dish is drawn as an original flat illustration (procedural, `public/js/dishart.js` — no photos or emoji needed); rows show a plated thumbnail, and every spread pairs a framed "plate print" (gallery-style frame and mat) with an editorial menu page: chapter numerals, dotted price leaders, chef's picks, spice and prep time, a "Sold out" stamp
-- Contents page with page numbers, chef's pairing tailpieces on short pages, and a "Fin." colophon to review the order or call the waiter
-- Film grain, dust motes in the light, a gold reading-progress line; text stays razor-sharp at rest
-- Design language follows the reference brief: paper `#f6f4ee`, ink `#111110`, frame `#191917`, small-caps monospace labels, physical easing
+**Guest menu** (`/menu?t=T1`) — a modern dine-in list, light by default (dark theme one tap away)
+- Photo hero, sticky search + Veg / Chef's picks / Mild filters, category tabs that follow your scroll
+- "Chef's picks" photo carousel with quick add; dish rows with real photos, veg marks, spice and prep time
+- Dish sheet opens on the full photo; cart with per-dish notes, GST/service breakdown and your name
+- **Live order tracker** (SSE locally, polling on serverless): Placed → Accepted → Cooking → Ready → Served
+- Bottom dock: call staff (waiter / water / cutlery / bill) · **Bill · Pay** · View order
+- Smooth scrolling: no scroll listeners or smooth-scroll fights, lazy async images, `content-visibility` on long sections
 
-**List view** (one tap from the book) — the fast, searchable version
-- Brand header with table badge, hours and Wi‑Fi
-- Search with highlighting, Veg / Popular / Mild filters, sticky category tabs with scroll-spy
-- "Chef's picks" carousel with 3D tilt cards
-- Dish sheet with an **interactive 3D plated dish** (Three.js: ceramic plate, garnish, steam, drag to spin)
-- Cart with per-dish notes, GST/service breakdown, kitchen note, name
-- **Live order tracker** (Server-Sent Events): Placed → Accepted → Cooking → Ready → Served
-- Call staff button (waiter / water / cutlery / bill)
-- Light & dark theme, cart saved per table, works in "browsing mode" without a table
+**Pay & split the bill** (from the dock or the order tracker)
+- One table bill for everyone who ordered at that table, with every dish and who ordered it
+- **Whole bill**, **Split equally** (people at the table + how many shares you’re covering) or **My items** (tick your dishes; GST and service shared in proportion). Dishes someone has paid for show “Paid by …” and can’t be claimed twice
+- Pay with **UPI** (opens the guest’s UPI app with the amount when a UPI ID is set in Settings), **card** or **cash** at the table
+- Amounts are always computed by the server; each payment waits for staff to confirm it arrived, then updates live on every phone at the table. When confirmed payments cover the bill, the table **settles automatically** (orders marked paid, next guests start fresh)
+
+> The page-turning **menu book** (`public/js/book.js`, `public/css/book.css`) is kept in the repo but switched off — its markup and wiring are commented out in `menu.html` / `menu.js` (see commit 9543a51 to restore).
 
 **Kitchen console** (`/admin`, PIN protected)
+- **Bills** tab: every open table bill with received / waiting / left to pay, each payment (who, how much, UPI/card/cash, whole bill / equal share / own dishes) with one-tap *Received* or *Not received*, manual *Settle table*, and today’s settled payments. New payments chime and toast live
 - Live kanban board with chime + flashing new orders, one-tap status, mark paid, cancel
 - Waiter-call alerts
 - Menu manager: add / edit / delete dishes and categories, **sold-out toggle** that updates every phone
@@ -95,9 +93,9 @@ Data lives in `data/db.json` (created from `data/seed.js` on first run; delete i
 
 ## API (summary)
 
-Public: `GET /api/menu`, `GET /api/tables`, `GET /api/tables/:id`, `POST /api/orders`, `GET /api/orders/:id`, `GET /api/orders/:id/events` (SSE), `POST /api/calls`, `GET /api/qr/:tableId[?format=png&size=…]`
+Public: `GET /api/menu`, `GET /api/tables`, `GET /api/tables/:id`, `GET /api/tables/:id/bill`, `POST /api/tables/:id/payments`, `POST /api/orders`, `GET /api/orders/:id`, `GET /api/orders/:id/events` (SSE), `POST /api/calls`, `GET /api/qr/:tableId[?format=png&size=…]`
 
-Admin (header `x-admin-pin`): `GET /api/admin/state|stats|stream`, `PATCH /api/admin/orders/:id`, `PATCH /api/admin/calls/:id`, `POST|PUT|DELETE /api/admin/items`, `POST|DELETE /api/admin/categories`, `POST|DELETE /api/admin/tables`, `PUT /api/admin/restaurant`, `POST /api/admin/reset`
+Admin (header `x-admin-pin`): `GET /api/admin/state|stats|stream`, `PATCH /api/admin/orders/:id`, `PATCH /api/admin/calls/:id`, `PATCH /api/admin/payments/:id`, `POST /api/admin/tables/:id/settle`, `POST|PUT|DELETE /api/admin/items`, `POST|DELETE /api/admin/categories`, `POST|DELETE /api/admin/tables`, `PUT /api/admin/restaurant`, `POST /api/admin/reset`
 
 Security notes: order totals are always recomputed on the server from the stored menu (client prices are ignored); sold-out dishes are rejected; inputs are length-limited and sanitised; all user text is HTML-escaped in the UI; customer IPs are never returned; basic per-IP rate limits on ordering and staff calls; PIN compared in constant time.
 

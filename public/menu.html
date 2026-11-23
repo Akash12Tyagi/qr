@@ -3,108 +3,120 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#14110F">
+  <meta name="theme-color" content="#F7F3EA">
   <title>Menu</title>
-  <meta name="description" content="Browse the menu and order from your table — no app needed.">
+  <meta name="description" content="Browse the menu, order from your table and pay or split the bill — no app needed.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/poppins-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/brand.css">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/menu.css">
-  <link rel="stylesheet" href="/css/book.css">
-  <script>try{var t=localStorage.getItem('qm:theme');if(t)document.documentElement.dataset.theme=JSON.parse(t);var v=localStorage.getItem('qm:view');document.documentElement.dataset.view=v?JSON.parse(v):'book'}catch(e){}</script>
-  <script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.min.js" } }</script>
+  <!-- Book view is switched off for now (see the commented markup below and public/js/book.js).
+  <link rel="stylesheet" href="/css/book.css"> -->
+  <script>try{var t=localStorage.getItem('qm:theme');document.documentElement.dataset.theme=t?JSON.parse(t):'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
 </head>
 <body>
-  <!-- ============ BOOK VIEW (default): scroll to turn the pages ============ -->
-  <div class="book-view" id="bookView">
-    <div class="bk-bar">
-      <div class="bk-left"><span class="table-badge" id="bkTable"><span class="dot"></span><span>Browsing</span></span></div>
-      <div class="bk-mid"><span id="bkBrand">&nbsp;</span></div>
-      <div class="bk-right">
-        <button class="ghost-btn" id="bkToc" aria-label="Contents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5c2.5-1 5.5-1 8 .5v13c-2.5-1.5-5.5-1.5-8-.5zM20 5.5c-2.5-1-5.5-1-8 .5v13c2.5-1.5 5.5-1.5 8-.5z"/></svg><span class="lbl">Contents</span></button>
-        <button class="ghost-btn hidden" id="bkOrders" aria-label="My orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span class="lbl">Order</span><span class="pip"></span></button>
-        <button class="ghost-btn" id="bkCall" aria-label="Call staff" aria-haspopup="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18h16M6 18a6 6 0 0 1 12 0M12 7v5M10.5 7h3"/></svg></button>
-        <button class="ghost-btn" id="toList" aria-label="Switch to list view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".6"/><circle cx="4.5" cy="12" r=".6"/><circle cx="4.5" cy="18" r=".6"/></svg><span class="lbl">List</span></button>
-      </div>
-    </div>
-    <nav class="bk-dock" aria-label="Turn pages">
-      <button class="arrow-btn" id="bkPrev" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <div class="bk-cap" aria-live="polite"><span class="k" id="bkKicker">Welcome</span><b id="bkChapter">&nbsp;</b><small id="bkFolio">&nbsp;</small></div>
-      <button class="arrow-btn" id="bkNext" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-    </nav>
-    <div id="bookRoot"></div>
-  </div>
+  <!-- ============ BOOK VIEW — commented out ============
+       The page-turning menu book lives in public/js/book.js + public/css/book.css.
+       To bring it back: restore this markup, the book.css link above, and the
+       createBook() wiring in public/js/menu.js (see git history, commit 9543a51).
+  <div class="book-view" id="bookView"> … </div>
+  ===================================================== -->
 
-  <!-- ============ LIST VIEW: fast, searchable, accessible ============ -->
-  <div id="listView">
-  <div class="embers" aria-hidden="true"></div>
-
-  <header class="hero" id="top">
-    <div class="hero-top">
-      <span class="table-badge" id="tableBadge"><span class="dot"></span><span id="tableText">Browsing</span></span>
-      <div class="hero-actions">
-        <button class="btn btn-icon btn-sm btn-ghost hidden" id="ordersBtn" aria-label="My orders"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span class="pip" id="ordersPip"></span></button>
-        <button class="btn btn-sm btn-ghost" id="toBook" aria-label="Switch to book view">Book view</button>
-        <button class="btn btn-icon btn-sm btn-ghost" id="themeBtn" aria-label="Toggle light / dark theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
-      </div>
+  <!-- ============ TOP BAR ============ -->
+  <header class="appbar" id="appbar">
+    <div class="appbar-in">
+      <a class="ab-brand" href="#top" aria-label="Back to top">
+        <img src="/logo-mark.svg" width="30" height="30" alt="">
+        <span class="ab-name" id="abName">&nbsp;</span>
+      </a>
+      <span class="table-chip" id="tableChip"><i></i><span id="tableText">Browsing</span></span>
+      <button class="icon-btn hidden" id="ordersBtn" aria-label="Track my order">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span class="pip"></span>
+      </button>
+      <button class="icon-btn" id="themeBtn" aria-label="Switch light / dark">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>
+      </button>
     </div>
-    <h1 class="display brand" id="brandName"><span class="skeleton" style="display:inline-block;width:240px;height:40px"></span></h1>
-    <p class="tagline" id="tagline">&nbsp;</p>
-    <div class="info-row" id="infoRow"></div>
   </header>
 
-  <div class="toolbar" id="toolbar">
-    <div class="search-row">
-      <label class="search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input id="search" type="search" placeholder="Search dishes, ingredients…" autocomplete="off" enterkeyhint="search">
-      </label>
-      <button class="filter" data-filter="veg" aria-pressed="false"><i class="diet"></i>Veg</button>
-      <button class="filter" data-filter="popular" aria-pressed="false">Chef’s picks</button>
-      <button class="filter" data-filter="mild" aria-pressed="false">Mild</button>
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="top">
+    <div class="hero-card">
+      <img class="hero-img" id="heroImg" alt="" width="800" height="1000" decoding="async" fetchpriority="high">
+      <div class="hero-shade"></div>
+      <div class="hero-copy">
+        <span class="label hero-k" id="heroKicker">Dine-in menu</span>
+        <h1 id="brandName"><span class="skeleton" style="display:inline-block;width:220px;height:36px"></span></h1>
+        <p id="tagline">&nbsp;</p>
+      </div>
     </div>
-    <nav class="cats" id="cats" aria-label="Menu categories"></nav>
+    <div class="info-row" id="infoRow"></div>
+  </section>
+
+  <!-- ============ SEARCH + CATEGORIES (sticky) ============ -->
+  <div class="toolbar" id="toolbar">
+    <div class="tb-in">
+      <div class="search-row">
+        <label class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="search" type="search" placeholder="Search dishes or ingredients" autocomplete="off" enterkeyhint="search">
+        </label>
+      </div>
+      <div class="filter-row">
+        <button class="filter" data-filter="veg" aria-pressed="false"><i class="diet"></i>Veg only</button>
+        <button class="filter" data-filter="popular" aria-pressed="false">Chef’s picks</button>
+        <button class="filter" data-filter="mild" aria-pressed="false">Mild</button>
+      </div>
+      <nav class="cats" id="cats" aria-label="Menu categories"></nav>
+    </div>
   </div>
 
+  <!-- ============ MENU ============ -->
   <main id="main" class="wrap">
-    <section class="picks" id="picksSec">
-      <h2 class="sec-title display">Chef’s picks <span class="muted">swipe →</span></h2>
+    <section class="picks" id="picksSec" aria-labelledby="picksTitle">
+      <div class="sec-head"><h2 id="picksTitle">Chef’s picks</h2><span class="label muted">Swipe</span></div>
       <div class="picks-track" id="picks"></div>
     </section>
     <div id="sections"></div>
     <div id="empty" class="empty hidden">
-      <div class="big">🍽️</div>
-      <p>No dishes match that. Try another search or filter.</p>
+      <p class="empty-t">Nothing matches that</p>
+      <p>Try another search or clear the filters.</p>
       <button class="btn btn-sm" id="clearFilters">Clear filters</button>
     </div>
-    <footer class="foot muted">
-      Prices include all ingredients · <span id="taxNote"></span><br>
-      Powered by <strong>QR Menu</strong> — no app, just scan &amp; order.
+    <footer class="foot">
+      <span id="taxNote"></span>
+      <span>Scan · order · pay at your table — no app needed</span>
     </footer>
   </main>
-  </div><!-- /listView -->
 
-  <!-- Call waiter -->
-  <div class="fab-wrap" id="fabWrap">
-    <div class="fab-menu" id="fabMenu" role="menu">
-      <button role="menuitem" data-call="waiter">Call a waiter</button>
-      <button role="menuitem" data-call="water">Water, please</button>
-      <button role="menuitem" data-call="cutlery">Extra cutlery</button>
-      <button role="menuitem" data-call="bill">Bring the bill</button>
+  <!-- ============ BOTTOM DOCK: call staff · bill · cart ============ -->
+  <div class="dock" id="dock">
+    <div class="dock-in">
+      <div class="call-wrap" id="fabWrap">
+        <div class="call-menu" id="fabMenu" role="menu">
+          <button role="menuitem" data-call="waiter">Call a waiter</button>
+          <button role="menuitem" data-call="water">Water, please</button>
+          <button role="menuitem" data-call="cutlery">Extra cutlery</button>
+          <button role="menuitem" data-call="bill">Bring the bill</button>
+        </div>
+        <button class="dock-btn round" id="fab" aria-haspopup="menu" aria-expanded="false" aria-label="Call staff">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M6 18a6 6 0 0 1 12 0M12 7v5M10.5 7h3"/></svg>
+        </button>
+      </div>
+      <button class="dock-btn billbtn hidden" id="billBtn" aria-label="View the bill and pay">
+        <span class="db-k">Bill</span><strong id="billBtnAmt">₹0</strong><span class="db-cta">Pay</span>
+      </button>
+      <button class="dock-btn cart" id="cartbar" aria-label="View your order">
+        <span class="cb-count" id="cbCount">0</span>
+        <span class="cb-text"><strong id="cbTotal">₹0</strong><small id="cbItems">0 items</small></span>
+        <span class="cb-cta">View order</span>
+      </button>
     </div>
-    <button class="fab" id="fab" aria-haspopup="menu" aria-expanded="false" aria-label="Call staff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 18h16M6 18a6 6 0 0 1 12 0M12 7v5M10.5 7h3"/></svg></button>
   </div>
 
-  <!-- Cart bar -->
-  <button class="cartbar" id="cartbar" aria-label="View cart">
-    <span class="cb-count" id="cbCount">0</span>
-    <span class="cb-text"><strong id="cbTotal">₹0</strong><small id="cbItems">0 items</small></span>
-    <span class="cb-cta">View cart →</span>
-  </button>
-
-  <!-- Sheets -->
+  <!-- ============ SHEETS ============ -->
   <div class="scrim" id="scrim"></div>
 
   <section class="sheet" id="itemSheet" role="dialog" aria-modal="true" aria-labelledby="isName">
@@ -112,7 +124,7 @@
     <div class="is-stage" id="isStage"></div>
     <div class="sheet-body">
       <div class="is-head">
-        <h2 class="display" id="isName"></h2>
+        <h2 id="isName"></h2>
         <div class="is-price" id="isPrice"></div>
       </div>
       <div class="is-meta" id="isMeta"></div>
@@ -132,12 +144,12 @@
   <section class="sheet" id="cartSheet" role="dialog" aria-modal="true" aria-labelledby="cartTitle">
     <button class="sheet-close" data-close aria-label="Close">✕</button>
     <div class="sheet-body">
-      <h2 class="display" id="cartTitle">Your order</h2>
+      <h2 id="cartTitle">Your order</h2>
       <p class="muted" id="cartTable"></p>
       <ul class="cart-lines" id="cartLines"></ul>
       <div class="cart-extra">
-        <label class="field"><span>Your name (optional)</span><input class="input" id="custName" maxlength="40" autocomplete="given-name" placeholder="So we can call you"></label>
-        <label class="field"><span>Note for the kitchen</span><textarea class="input" id="orderNote" maxlength="200" rows="2" placeholder="Allergies, timing, celebrations 🎂"></textarea></label>
+        <label class="field"><span>Your name</span><input class="input" id="custName" maxlength="40" autocomplete="given-name" placeholder="So we know who ordered what"></label>
+        <label class="field"><span>Note for the kitchen</span><textarea class="input" id="orderNote" maxlength="200" rows="2" placeholder="Allergies, timing, a celebration"></textarea></label>
         <label class="field hidden" id="tablePickWrap"><span>Your table</span><select class="input" id="tablePick"></select></label>
       </div>
       <dl class="bill" id="bill"></dl>
@@ -147,9 +159,25 @@
     </div>
   </section>
 
-  <section class="sheet" id="trackSheet" role="dialog" aria-modal="true" aria-labelledby="trackTitle">
+  <section class="sheet" id="trackSheet" role="dialog" aria-modal="true" aria-label="Order status">
     <button class="sheet-close" data-close aria-label="Close">✕</button>
     <div class="sheet-body" id="trackBody"></div>
+    <div class="sheet-foot"><button class="btn grow" id="trackToBill">View bill &amp; pay</button></div>
+  </section>
+
+  <!-- Table bill: pay in full, split equally, or pay for your own dishes -->
+  <section class="sheet tall" id="payBillSheet" role="dialog" aria-modal="true" aria-labelledby="pbTitle">
+    <button class="sheet-close" data-close aria-label="Close">✕</button>
+    <div class="sheet-body" id="pbBody">
+      <div class="pb-head">
+        <div><span class="label muted" id="pbTable">Table</span><h2 id="pbTitle">Your bill</h2></div>
+        <span class="status-pill" id="pbStatus">Open</span>
+      </div>
+      <div id="pbContent"></div>
+    </div>
+    <div class="sheet-foot" id="pbFoot">
+      <button class="btn btn-primary grow" id="payBtn" disabled>Pay</button>
+    </div>
   </section>
 
   <noscript><p style="padding:24px">Please enable JavaScript to view the menu.</p></noscript>

@@ -12,6 +12,7 @@ module.exports = {
     accent: '#F4A51C',   // brand saffron (fixed by the brand system)
     publicUrl: '',       // optional: override the base URL encoded in QR codes (e.g. https://menu.mycafe.in)
     wifi: 'EmberGuest / saffron2024',
+    upiId: '',           // e.g. yourcafe@okhdfcbank — enables the "Pay with UPI app" button
     hours: '12:00 – 23:30',
   },
   categories: [
@@ -67,5 +68,6 @@ module.exports = {
   tables: Array.from({ length: 8 }, (_, i) => ({ id: `T${i + 1}`, label: `Table ${i + 1}`, seats: i < 4 ? 2 : 4 })),
   orders: [],
   calls: [],
+  payments: [],
   seq: 1000,
 };

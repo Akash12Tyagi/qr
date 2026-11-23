@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#F7F3EA">
   <title>Ember &amp; Saffron · The Menu</title>
-  <meta name="description" content="Walk through our kitchen's gallery of plates, then scan the QR on your table — the menu opens as a book in your browser and orders go straight to the kitchen.">
+  <meta name="description" content="Scan the QR on your table: the menu opens in your browser, orders go straight to the kitchen, and you can pay or split the bill from your phone.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/poppins-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -14,13 +14,13 @@
   <script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.min.js", "three/addons/": "/vendor/three/examples/jsm/" } }</script>
 </head>
 <body>
-  <a class="skip" href="#book">Skip the gallery</a>
+  <a class="skip" href="#table">Skip to content</a>
 
   <header class="nav" id="nav">
     <a class="brand" href="/" aria-label="Home"><img class="mark-img" src="/logo-mark.svg" width="34" height="34" alt=""><span class="wordmark" id="brandName">Beyourown <span class="amp">&amp;</span> Menu-Vendor</span></a>
     <nav class="links" aria-label="Sections">
-      <a href="#gallery">Gallery</a>
-      <a href="#book">The book</a>
+      <!-- <a href="#gallery">Gallery</a>  (gallery section is commented out) -->
+      <a href="#table">At the table</a>
       <a href="#how">How it works</a>
       <a href="#kitchen">For kitchens</a>
     </nav>
@@ -105,7 +105,7 @@
     </div>
   </section> -->
 
-  <!-- ===================== THE BOOK ===================== -->
+  <!-- ===================== THE BOOK — commented out (the menu book is switched off) =====================
   <section class="sec book-sec" id="book">
     <div class="book-demo" aria-hidden="true">
       <div class="b3d">
@@ -128,6 +128,30 @@
     </div>
   </section>
 
+  ===================== /THE BOOK ===================== -->
+
+  <!-- ===================== AT THE TABLE ===================== -->
+  <section class="sec book-sec" id="table">
+    <div class="photo-stack" aria-hidden="true">
+      <img src="/img/dishes/i12-md.jpg" alt="" width="480" height="600" loading="lazy" decoding="async">
+      <img src="/img/dishes/i5-md.jpg" alt="" width="480" height="600" loading="lazy" decoding="async">
+      <img src="/img/dishes/i1-md.jpg" alt="" width="480" height="600" loading="lazy" decoding="async">
+      <div class="split-card"><span class="mono">Table 3 · bill</span><b>₹2,084</b><span class="sc-row"><i></i>Asha · own dishes · ₹1,071</span><span class="sc-row"><i></i>Ravi · 1 of 2 shares · ₹1,013</span></div>
+    </div>
+    <div class="copy">
+      <p class="mono kicker">At the table</p>
+      <h2 class="display-l">Order, split and <em>pay.</em></h2>
+      <p class="body">Scan the code on the standee and the menu opens on your phone — real photos, search, veg filters and spice levels. Order for the table, watch it cook, then settle up without waiting for the bill.</p>
+      <ul class="ticks">
+        <li>Pay the whole bill, split it equally, or pay just for your dishes</li>
+        <li>UPI, card or cash — the kitchen confirms each payment live</li>
+        <li>Track your order from <em>placed</em> to <em>served</em></li>
+        <li>Call for water, cutlery or the bill without waving</li>
+      </ul>
+      <a class="pill dark" href="/menu?t=T1">Open the menu</a>
+    </div>
+  </section>
+
   <!-- ===================== HOW IT WORKS ===================== -->
   <section class="sec how" id="how">
     <header class="sec-head">
@@ -136,9 +160,9 @@
     </header>
     <ol class="steps">
       <li><span class="cond n">01</span><h3>Scan</h3><p>Every table has its own printed QR standee. The phone camera opens the menu — already knowing which table you’re at.</p></li>
-      <li><span class="cond n">02</span><h3>Browse</h3><p>Turn the pages of the menu book, or switch to the searchable list. Spice levels, veg marks and prep times on every dish.</p></li>
+      <li><span class="cond n">02</span><h3>Browse</h3><p>Real photos, search and veg filters. Spice levels and prep times on every dish.</p></li>
       <li><span class="cond n">03</span><h3>Order</h3><p>Add dishes, leave a note for the chef and send. Prices and taxes are always calculated by the restaurant, not the phone.</p></li>
-      <li><span class="cond n">04</span><h3>Enjoy</h3><p>Watch your order move from the pass to your table, live. Need something? One tap calls the floor team.</p></li>
+      <li><span class="cond n">04</span><h3>Enjoy</h3><p>Watch your order move from the pass to your table, live — then pay or split the bill right from your phone.</p></li>
     </ol>
   </section>
 

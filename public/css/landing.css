@@ -249,7 +249,24 @@ img { display: block; max-width: 100%; }
   .footer { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) {
-  
+  .reveal { opacity: 1; transform: none; }
+}
+
 .foot-links { display: flex; gap: 22px; flex-wrap: wrap; }
 .foot-links a { text-decoration: none; color: var(--stone); }
 .foot-links a:hover { color: var(--ink); }
+
+/* "At the table" visual: a stack of real dish photos with a split-bill card */
+.photo-stack { position: relative; min-height: 520px; display: grid; place-items: center; }
+.photo-stack img { position: absolute; width: min(260px, 52vw); aspect-ratio: 4 / 5; height: auto; object-fit: cover; border-radius: 18px; box-shadow: 0 30px 50px -28px rgba(20, 17, 15, .55); }
+.photo-stack img:nth-child(1) { transform: translate(-34%, -6%) rotate(-8deg); }
+.photo-stack img:nth-child(2) { transform: translate(30%, -12%) rotate(6deg); }
+.photo-stack img:nth-child(3) { transform: translate(0, 6%) rotate(-1deg); z-index: 1; }
+.split-card { position: absolute; z-index: 2; right: 4%; bottom: 6%; display: grid; gap: 8px; min-width: 240px; padding: 16px 18px; border-radius: 18px; background: var(--ink); color: var(--cream); box-shadow: 0 24px 40px -20px rgba(20, 17, 15, .7); }
+.split-card .mono { color: var(--stone-light); }
+.split-card b { font: 700 28px/1 var(--font-display); letter-spacing: -.03em; }
+.sc-row { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: rgba(247, 243, 234, .85); }
+.sc-row i { width: 8px; height: 8px; border-radius: 50%; background: var(--saffron); flex: none; }
+@media (max-width: 980px) { .photo-stack { min-height: 440px; order: 2; } }
+@media (max-width: 520px) { .split-card { right: 0; left: 0; margin: 0 auto; width: max-content; } }
+.ticks em { font-style: normal; font-weight: 600; }
