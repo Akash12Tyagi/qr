@@ -1,32 +1,44 @@
-import { $, $$, esc, api, toast, fmtMoney, storage, dishArt, dietIcon, thumbOf, prefersReducedMotion } from './common.js';
+import { $, $$, esc, api, toast, fmtMoney, storage, dishArt, dietIcon, thumbOf, prefersReducedMotion, tenantSlug, tenantApi } from './common.js';
 // The page-turning menu book is switched off for now. To restore it, re-enable this import,
 // the book markup in menu.html and createBook() wiring (git history, commit 9543a51).
 // import { createBook } from './book.js';
 
 // ============================================================ state
 const params = new URLSearchParams(location.search);
+const SLUG = tenantSlug();
+const API = tenantApi(SLUG);                       // every call is scoped to this restaurant
 let tableId = (params.get('t') || '').toUpperCase().slice(0, 20);
 let table = null;
 let menu = { restaurant: {}, categories: [], items: [] };
 const filters = { q: '', veg: false, popular: false, mild: false };
-const cartKey = () => `qm:cart:${tableId || 'browse'}`;
+const cartKey = () => `qm:cart:${SLUG}:${tableId || 'browse'}`;
 let cart = [];                                     // [{ id, qty, note }]
-let myOrders = storage.get('qm:orders', []);       // [{ id, number, at }]
+const ordersKey = `qm:orders:${SLUG}`;
+let myOrders = storage.get(ordersKey, []);         // [{ id, number, at }]
 const cur = () => menu.restaurant.currency || '₹';
 const money = (n) => fmtMoney(n, cur());
 const byId = (id) => menu.items.find((i) => i.id === id);
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // ============================================================ boot
-init().catch((e) => {
+if (!SLUG) {
+  // Old printed QR codes (/menu?t=T3) open the default restaurant.
+  api('/api/default-tenant')
+    .then((t) => location.replace(`/r/${t.slug}/menu${location.search}`))
+    .catch((e) => showLoadError(e));
+} else {
+  init().catch(showLoadError);
+}
+function showLoadError(e) {
   console.error(e);
-  $('#sections').innerHTML = `<div class="empty"><p class="empty-t">We couldn’t load the menu</p><p>${esc(e.message)}</p><button class="btn btn-sm" onclick="location.reload()">Try again</button></div>`;
-});
+  $('#sections').innerHTML = `<div class="empty"><p class="empty-t">We couldn’t load the menu</p><p>${esc(e.message)}</p><button class="btn btn-sm" type="button" id="retryLoad">Try again</button></div>`;
+  $('#retryLoad')?.addEventListener('click', () => location.reload());
+}
 
 async function init() {
   const [m, t] = await Promise.all([
-    api('/api/menu'),
-    tableId ? api(`/api/tables/${encodeURIComponent(tableId)}`).catch(() => null) : Promise.resolve(null),
+    api(`${API}/menu`),
+    tableId ? api(`${API}/tables/${encodeURIComponent(tableId)}`).catch(() => null) : Promise.resolve(null),
   ]);
   menu = m;
   table = t;
@@ -48,7 +60,7 @@ async function init() {
 
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
-    try { menu = await api('/api/menu'); renderPicks(); renderSections(); renderCart(); } catch { /* offline: keep old */ }
+    try { menu = await api(`${API}/menu`); renderPicks(); renderSections(); renderCart(); } catch { /* offline: keep old */ }
     if (table) refreshBill();
   });
 }
@@ -234,13 +246,13 @@ async function placeOrder() {
   const btn = $('#placeBtn');
   btn.disabled = true; btn.textContent = 'Sending to the kitchen…';
   try {
-    const order = await api('/api/orders', {
+    const order = await api(`${API}/orders`, {
       method: 'POST',
       body: { table: tid, name: $('#custName').value, note: $('#orderNote').value, items: cart.map(({ id, qty, note }) => ({ id, qty, note })) },
     });
     storage.set('qm:name', $('#custName').value);
     myOrders = [{ id: order.id, number: order.number, at: order.createdAt }, ...myOrders].slice(0, 10);
-    storage.set('qm:orders', myOrders);
+    storage.set(ordersKey, myOrders);
     cart = []; saveCart(); $('#orderNote').value = '';
     renderCart(); renderSections(); renderPicks();
     confetti();
@@ -250,7 +262,7 @@ async function placeOrder() {
     if (table) refreshBill();
   } catch (e) {
     toast(e.message, { error: true, ms: 4000 });
-    if (e.status === 400) { try { menu = await api('/api/menu'); renderSections(); renderCart(); } catch { /* ignore */ } }
+    if (e.status === 400) { try { menu = await api(`${API}/menu`); renderSections(); renderCart(); } catch { /* ignore */ } }
   } finally {
     renderCart();
   }
@@ -341,7 +353,7 @@ async function openTracker(orderId) {
   const id = orderId || myOrders[0]?.id;
   if (!id) return;
   try {
-    const o = await api(`/api/orders/${encodeURIComponent(id)}`);
+    const o = await api(`${API}/orders/${encodeURIComponent(id)}`);
     renderTracker(o);
     if (!$('#trackSheet').classList.contains('open')) showSheet($('#trackSheet'));
     if (trackStream) trackStream.close();
@@ -359,17 +371,17 @@ async function openTracker(orderId) {
       let timer = null;
       const tick = async () => {
         if (stopped) return;
-        try { onUpdate(await api(`/api/orders/${encodeURIComponent(id)}`)); } catch { /* retry next tick */ }
+        try { onUpdate(await api(`${API}/orders/${encodeURIComponent(id)}`)); } catch { /* retry next tick */ }
         if (!stopped && !['served', 'cancelled'].includes(last)) timer = setTimeout(tick, document.hidden ? 10000 : 4000);
       };
       timer = setTimeout(tick, 4000);
       trackStream = { close() { stopped = true; clearTimeout(timer); } };
     } else {
-      trackStream = new EventSource(`/api/orders/${encodeURIComponent(id)}/events`);
+      trackStream = new EventSource(`${API}/orders/${encodeURIComponent(id)}/events`);
       trackStream.addEventListener('order:update', (ev) => { try { onUpdate(JSON.parse(ev.data)); } catch { /* ignore */ } });
     }
   } catch (e) {
-    if (e.status === 404) { myOrders = myOrders.filter((m) => m.id !== id); storage.set('qm:orders', myOrders); refreshOrdersPip(); }
+    if (e.status === 404) { myOrders = myOrders.filter((m) => m.id !== id); storage.set(ordersKey, myOrders); refreshOrdersPip(); }
     toast(e.message, { error: true });
   }
 }
@@ -381,14 +393,14 @@ let bill = null;
 let billSig = '';
 let billTimer = null;
 const pay = { mode: 'full', parts: 2, shares: 1, lines: new Set(), method: '', name: storage.get('qm:name', '') || '', more: false };
-const myPayKey = () => `qm:pay:${tableId}`;
+const myPayKey = () => `qm:pay:${SLUG}:${tableId}`;
 const myPayments = () => storage.get(myPayKey(), []);
 const billOpen = () => $('#payBillSheet').classList.contains('open');
 
 async function refreshBill() {
   if (!table) return;
   try {
-    const b = await api(`/api/tables/${encodeURIComponent(table.id)}/bill`);
+    const b = await api(`${API}/tables/${encodeURIComponent(table.id)}/bill`);
     const sig = JSON.stringify(b);
     bill = b;
     renderDockBill();
@@ -563,7 +575,7 @@ async function submitPayment() {
   const btn = $('#payBtn');
   btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    const out = await api(`/api/tables/${encodeURIComponent(table.id)}/payments`, {
+    const out = await api(`${API}/tables/${encodeURIComponent(table.id)}/payments`, {
       method: 'POST',
       body: { mode: pay.mode, parts: pay.parts, shares: pay.shares, lines: [...pay.lines], method: pay.method, name: pay.name },
     });
@@ -691,7 +703,7 @@ function wireUi() {
       $('#tablePickWrap').classList.remove('hidden');
       if (!$('#tablePick').options.length) {
         try {
-          const tables = await api('/api/tables');
+          const tables = await api(`${API}/tables`);
           $('#tablePick').innerHTML = `<option value="">Select your table…</option>${tables.map((t) => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')}`;
         } catch { /* ignore */ }
       }
@@ -726,7 +738,7 @@ function wireUi() {
 async function callStaff(reason) {
   if (!table) { toast('Scan the QR on your table to call our staff.', { error: true }); return; }
   try {
-    await api('/api/calls', { method: 'POST', body: { table: table.id, reason } });
+    await api(`${API}/calls`, { method: 'POST', body: { table: table.id, reason } });
     toast('Our team has been notified — someone will be right with you.', { ms: 3500 });
   } catch (err) { toast(err.message, { error: true }); }
 }

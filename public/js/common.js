@@ -24,13 +24,22 @@ export function timeAgo(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-export async function api(path, { method = 'GET', body, pin, signal } = {}) {
-  const headers = { Accept: 'application/json' };
+/** The restaurant this page belongs to: /r/<slug>/menu → "<slug>" ("" when not under /r/). */
+export function tenantSlug() {
+  const m = location.pathname.match(/^\/r\/([a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9]))(?:\/|$)/);
+  return m ? m[1] : '';
+}
+/** Public API base for a restaurant. */
+export const tenantApi = (slug) => `/api/r/${encodeURIComponent(slug)}`;
+
+/** Same-origin JSON fetch. Sessions are HttpOnly cookies (never readable here); the custom
+ *  header proves the request came from our own pages (cross-site forms can't set it). */
+export async function api(path, { method = 'GET', body, signal } = {}) {
+  const headers = { Accept: 'application/json', 'X-QM-CSRF': '1' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (pin) headers['x-admin-pin'] = pin;
   let res;
   try {
-    res = await fetch(path, { method, headers, signal, body: body !== undefined ? JSON.stringify(body) : undefined });
+    res = await fetch(path, { method, headers, signal, credentials: 'same-origin', body: body !== undefined ? JSON.stringify(body) : undefined });
   } catch (e) {
     if (e.name === 'AbortError') throw e;
     throw new Error('Network error — check your connection.');
@@ -41,6 +50,7 @@ export async function api(path, { method = 'GET', body, pin, signal } = {}) {
   if (!res.ok) {
     const err = new Error((data && data.error) || `Request failed (${res.status})`);
     err.status = res.status;
+    if (data && data.code) err.code = data.code;
     throw err;
   }
   return data;
@@ -76,7 +86,15 @@ export const thumbOf = (src) => (/^\/img\/dishes\/[\w-]+\.jpg$/.test(src || '') 
 /** Returns the HTML for a dish visual: the restaurant's photo if set, otherwise a generated illustration. */
 export function dishArt(item, cls = '', size = 240) {
   const src = item.image ? esc(size > 300 ? item.image : thumbOf(item.image)) : posterUrl(item, size, Math.round(size * 1.25));
-  return `<div class="dish-art ${cls}" style="--h:${Number(item.hue) || 30}"><img src="${src}" alt="" loading="lazy" decoding="async"${item.image ? ' onerror="this.remove()"' : ''}></div>`;
+  return `<div class="dish-art ${cls}" style="--h:${Number(item.hue) || 30}"><img src="${src}" alt="" loading="lazy" decoding="async"${item.image ? ' data-fallback' : ''}></div>`;
+}
+// A restaurant photo that fails to load is removed, revealing the illustrated plate behind
+// it. One capturing listener instead of an inline error handler (blocked by our CSP).
+if (typeof document !== 'undefined') {
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (img && img.tagName === 'IMG' && img.hasAttribute('data-fallback')) img.remove();
+  }, true);
 }
 
 export function dietIcon(veg) {

@@ -8,15 +8,20 @@ let menu = null;
 let step = 1;           // scroll px per exhibit
 let count = 0;
 
-$('#demoQr').src = '/api/qr/T1?margin=1';
 if (/localhost|127\.0\.0\.1/.test(location.hostname)) {
   $('#lanHint').textContent = 'You’re on localhost — open this page via your computer’s network address so a phone can reach it.';
 }
 
 init().catch((e) => { console.warn(e); fallback(); });
 
+let SLUG = '';
 async function init() {
-  menu = await api('/api/menu');
+  // The landing page showcases the platform's default (demo) restaurant.
+  SLUG = (await api('/api/default-tenant')).slug;
+  const demoQr = $('#demoQr');
+  if (demoQr) demoQr.src = `/api/r/${SLUG}/qr/T1?margin=1`;
+  for (const a of document.querySelectorAll('a[data-demo]')) a.href = `/r/${SLUG}/${a.dataset.demo}`;
+  menu = await api(`/api/r/${SLUG}/menu`);
   const r = menu.restaurant;
   const initials = r.name.replace(/&/g, ' ').split(/\s+/).filter(Boolean);
   const mark = initials.length > 1 ? `${initials[0][0]}&${initials[initials.length - 1][0]}` : r.name.slice(0, 2);
@@ -46,7 +51,7 @@ async function init() {
   wire();
 }
 
-const chapterUrl = (id) => `/menu?t=T1&ch=${encodeURIComponent(id)}`;
+const chapterUrl = (id) => `/r/${SLUG}/menu?t=T1&ch=${encodeURIComponent(id)}`;
 
 // ---------------------------------------------------------------- scroll → walk
 function sizeSection() {

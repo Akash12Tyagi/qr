@@ -1,43 +1,68 @@
-import { $, $$, esc, api, toast, fmtMoney, timeAgo, storage, dishArt, dietIcon } from './common.js';
+import { $, $$, esc, api, toast, fmtMoney, timeAgo, storage, dishArt, dietIcon, tenantSlug } from './common.js';
 
-let pin = sessionStorage.getItem('qm:pin') || '';
-let state = null;               // full admin state from /api/admin/state
+// The console lives at /r/<restaurant>/admin. Sign-in happens on /login; the session is an
+// HttpOnly cookie the page never sees, so nothing secret is stored in the browser.
+const SLUG = tenantSlug();
+const ADMIN = `/api/r/${encodeURIComponent(SLUG)}/admin`;
+const PUBLIC = `/api/r/${encodeURIComponent(SLUG)}`;
+let state = null;               // full admin state from the console API
+let me = null;                  // { email, name, role }
 let es = null;                  // EventSource
 let sound = storage.get('qm:sound', true);
 const fresh = new Set();        // order ids to highlight
 const cur = () => state?.restaurant?.currency || '₹';
-const call = (path, opts = {}) => api(path, { ...opts, pin });
+const isOwner = () => me?.role === 'owner';
+
+function toLogin() {
+  if (es) es.close();
+  location.replace(`/login?next=${encodeURIComponent(location.pathname + location.hash)}`);
+}
+async function call(path, opts = {}) {
+  try {
+    return await api(path.replace(/^\/api\/admin/, ADMIN), opts);
+  } catch (e) {
+    if (e.status === 401) toLogin();
+    else if (e.code === 'password_change_required') passwordDialog(true);
+    throw e;
+  }
+}
 
 // ============ auth ============
-$('#loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  pin = $('#pin').value.trim();
-  try {
-    await call('/api/admin/verify');
-    sessionStorage.setItem('qm:pin', pin);
-    start();
-  } catch (err) {
-    const card = $('.login-card');
-    card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
-    toast(err.status === 401 ? 'Wrong PIN' : err.message, { error: true });
-    $('#pin').select();
-  }
-});
-$('#logoutBtn').addEventListener('click', () => {
-  sessionStorage.removeItem('qm:pin');
+$('#logoutBtn').addEventListener('click', async () => {
   if (es) es.close();
-  location.reload();
+  try { await api('/api/auth/logout', { method: 'POST' }); } catch { /* signed out anyway */ }
+  location.replace('/login');
 });
 
-if (pin) call('/api/admin/verify').then(start).catch(() => { sessionStorage.removeItem('qm:pin'); pin = ''; showLogin(); });
-else showLogin();
+boot();
+async function boot() {
+  if (!SLUG) { location.replace('/login'); return; }
+  let who;
+  try { who = await api('/api/auth/me'); } catch (e) { if (e.status === 401) toLogin(); else showFatal(e.message); return; }
+  if (who.role === 'platform') { location.replace('/platform'); return; }
+  if (!who.tenant || who.tenant.slug !== SLUG) {
+    showFatal('You are signed in to a different restaurant.', who.tenant ? `/r/${who.tenant.slug}/admin` : '/login');
+    return;
+  }
+  me = who;
+  document.body.dataset.role = who.role;
+  if (who.mustChangePassword) { passwordDialog(true); return; }
+  start();
+}
+function showFatal(msg, href = '/login') {
+  $('#login').classList.remove('hidden');
+  $('#loginMsg').textContent = msg;
+  $('#loginLink').href = href;
+}
 
-function showLogin() { $('#login').classList.remove('hidden'); $('#shell').classList.add('hidden'); setTimeout(() => $('#pin').focus(), 50); }
-
+let started = false;
 async function start() {
+  if (started) return;
+  started = true;
   $('#login').classList.add('hidden');
   $('#shell').classList.remove('hidden');
   await loadState();
+  if (!state) return;
   connect();
   const initial = (location.hash || '#live').slice(1);
   switchTab(['live', 'bills', 'menu', 'tables', 'insights', 'settings'].includes(initial) ? initial : 'live');
@@ -47,16 +72,19 @@ async function start() {
 async function loadState() {
   try {
     state = await call('/api/admin/state');
+    me = { ...me, ...state.me };
+    document.body.dataset.role = me.role;
     $('#sideName').textContent = state.restaurant.name;
+    $('#guestLink').href = `/r/${SLUG}/menu?t=${encodeURIComponent(state.tables[0]?.id || 'T1')}`;
+    $('#resetBtn').classList.toggle('hidden', !state.tenant.demo);
     document.title = `${state.restaurant.name} · Kitchen Console`;
     renderAll();
   } catch (e) {
-    if (e.status === 401) { sessionStorage.removeItem('qm:pin'); location.reload(); return; }
-    toast(e.message, { error: true });
+    if (e.status !== 401 && e.code !== 'password_change_required') toast(e.message, { error: true });
   }
 }
 
-function renderAll() { state.payments = state.payments || []; renderBoard(); renderCalls(); renderBills(); renderMenu(); renderTables(); fillSettings(); }
+function renderAll() { state.payments = state.payments || []; renderBoard(); renderCalls(); renderBills(); renderMenu(); renderTables(); fillSettings(); renderAccount(); loadTeam(); }
 
 // ============ realtime ============
 function setConn(kind, text) {
@@ -170,9 +198,9 @@ function connect() {
   if (state?.realtime === 'poll') return startPolling();
   if (!('EventSource' in window)) { setConn('off', 'Live updates unsupported'); return; }
   if (es) es.close();
-  es = new EventSource(`/api/admin/stream?pin=${encodeURIComponent(pin)}`);
+  es = new EventSource(`${ADMIN}/stream`);
   es.addEventListener('open', () => setConn('on', 'Live'));
-  es.addEventListener('error', () => setConn('off', 'Reconnecting…'));
+  es.addEventListener('error', () => { setConn('off', 'Reconnecting…'); recheckSession(); });
   es.addEventListener('hello', () => { setConn('on', 'Live'); });
   es.addEventListener('order:new', (ev) => { const o = parse(ev); if (o) onOrderNew(o); });
   es.addEventListener('order:update', (ev) => { const o = parse(ev); if (o) onOrderUpdate(o); });
@@ -203,7 +231,7 @@ function startPolling() {
       for (const p of ch.payments || []) onPayment(p);
       setConn('on', 'Live');
     } catch (e) {
-      if (e.status === 401) { sessionStorage.removeItem('qm:pin'); location.reload(); return; }
+      if (e.status === 401) return;
       setConn('off', 'Reconnecting…');
     }
     pollTimer = setTimeout(tick, document.hidden ? 8000 : 3000);
@@ -211,6 +239,14 @@ function startPolling() {
   pollTimer = setTimeout(tick, 1500);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state) document.title = `${state.restaurant.name} · Kitchen Console`; });
+// A stream drops when access changes (password reset, removed from the team): check once.
+let rechecking = false;
+async function recheckSession() {
+  if (rechecking) return;
+  rechecking = true;
+  try { await api('/api/auth/me'); } catch (e) { if (e.status === 401) toLogin(); }
+  setTimeout(() => { rechecking = false; }, 10_000);
+}
 function parse(ev) { try { return JSON.parse(ev.data); } catch { return null; } }
 
 // Two-tone chime via WebAudio (no audio files needed)
@@ -345,7 +381,7 @@ function renderMenu() {
     if (menuFilter && !items.length) return '';
     return `<section class="mcat">
       <div class="mcat-head"><h2 class="display">${esc(c.icon)} ${esc(c.name)} <small class="muted">(${items.length})</small></h2>
-        ${items.length ? '' : `<button class="btn btn-sm btn-ghost" data-delcat="${esc(c.id)}">Delete category</button>`}</div>
+        ${items.length ? '' : `<button class="btn btn-sm btn-ghost owner-only" data-delcat="${esc(c.id)}">Delete category</button>`}</div>
       <div class="mrows">${items.map((i) => `
         <div class="mrow${i.available === false ? ' off' : ''}" data-id="${esc(i.id)}">
           ${dishArt(i)}
@@ -354,8 +390,8 @@ function renderMenu() {
           <div class="mprice">${fmtMoney(i.price, cur())}</div>
           <div class="mrow-actions">
             <button class="switch" role="switch" aria-checked="${i.available !== false}" aria-label="Available" data-toggle title="In stock"></button>
-            <button class="btn btn-sm" data-edit>Edit</button>
-            <button class="btn btn-sm btn-ghost btn-icon" data-del aria-label="Delete">🗑</button>
+            <button class="btn btn-sm owner-only" data-edit>Edit</button>
+            <button class="btn btn-sm btn-ghost btn-icon owner-only" data-del aria-label="Delete">🗑</button>
           </div>
         </div>`).join('') || '<p class="muted">No dishes yet.</p>'}</div>
     </section>`;
@@ -376,7 +412,7 @@ $('#menuList').addEventListener('click', async (e) => {
   if (!item) return;
   if (e.target.closest('[data-toggle]')) {
     try {
-      const upd = await call(`/api/admin/items/${encodeURIComponent(item.id)}`, { method: 'PUT', body: { ...item, available: item.available === false } });
+      const upd = await call(`/api/admin/items/${encodeURIComponent(item.id)}/availability`, { method: 'PATCH', body: { available: item.available === false } });
       Object.assign(item, upd); renderMenu();
       toast(upd.available ? `${upd.name} is back on` : `${upd.name} marked sold out`, { icon: upd.emoji });
     } catch (err) { toast(err.message, { error: true }); }
@@ -457,11 +493,12 @@ function itemDialog(item) {
 }
 
 // Generic dialog helper
-function openDialog(inner, onSubmit, onMount) {
+function openDialog(inner, onSubmit, onMount, { forced = false, okLabel = 'Save', noCancel = false } = {}) {
   const dlg = $('#dlg');
   const form = $('#dlgForm');
   form.innerHTML = `${inner}<p class="dlg-err muted hidden" role="alert" style="color:var(--danger)"></p>
-    <div class="dlg-actions"><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button><button class="btn btn-primary" value="ok">Save</button></div>`;
+    <div class="dlg-actions">${forced || noCancel ? '' : '<button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>'}<button class="btn btn-primary" value="ok">${esc(okLabel)}</button></div>`;
+  dlg.oncancel = forced ? (ev) => ev.preventDefault() : null; // Esc can't skip a required step
   onMount?.(form);
   form.onsubmit = async (e) => {
     if (e.submitter && e.submitter.value === 'cancel') return; // let dialog close
@@ -489,13 +526,13 @@ function renderTables() {
   $('#tablesGrid').innerHTML = state.tables.map((t) => `
     <article class="tcard" data-id="${esc(t.id)}">
       <div class="tcard-head"><strong class="display">${esc(t.label)}</strong><span class="chip">${esc(t.id)} · ${esc(t.seats)} seats</span></div>
-      <div class="qr-frame"><img src="/api/qr/${encodeURIComponent(t.id)}?v=${v}" alt="QR code for ${esc(t.label)}" loading="lazy"></div>
+      <div class="qr-frame"><img src="${PUBLIC}/qr/${encodeURIComponent(t.id)}?v=${v}" alt="QR code for ${esc(t.label)}" loading="lazy"></div>
       <a class="tlink" href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.url)}</a>
       <div class="tactions">
         <button class="btn btn-sm" data-copy>Copy link</button>
-        <a class="btn btn-sm" href="/api/qr/${encodeURIComponent(t.id)}?format=png&size=1200&download=1" download>PNG</a>
-        <a class="btn btn-sm" href="/print?tables=${encodeURIComponent(t.id)}&style=${esc($('#printStyle').value)}" target="_blank" rel="noopener">Print</a>
-        <button class="btn btn-sm btn-ghost btn-icon" data-deltable aria-label="Delete table">🗑</button>
+        <a class="btn btn-sm" href="${PUBLIC}/qr/${encodeURIComponent(t.id)}?format=png&size=1200&download=1" download>PNG</a>
+        <a class="btn btn-sm" href="/r/${SLUG}/print?tables=${encodeURIComponent(t.id)}&style=${encodeURIComponent($('#printStyle').value)}" target="_blank" rel="noopener">Print</a>
+        <button class="btn btn-sm btn-ghost btn-icon owner-only" data-deltable aria-label="Delete table">🗑</button>
       </div>
     </article>`).join('') || '<p class="muted">No tables yet — add one to generate its QR code.</p>';
 }
@@ -514,7 +551,7 @@ $('#tablesGrid').addEventListener('click', async (e) => {
 });
 $('#printStyle').addEventListener('change', renderTables);
 $('#printAll').addEventListener('click', () => {
-  window.open(`/print?tables=${state.tables.map((t) => encodeURIComponent(t.id)).join(',')}&style=${$('#printStyle').value}`, '_blank', 'noopener');
+  window.open(`/r/${SLUG}/print?tables=${state.tables.map((t) => encodeURIComponent(t.id)).join(',')}&style=${encodeURIComponent($('#printStyle').value)}`, '_blank', 'noopener');
 });
 $('#addTableBtn').addEventListener('click', () => {
   openDialog(`<h2 class="display">New table</h2>
@@ -574,4 +611,88 @@ $('#resetBtn').addEventListener('click', async () => {
   if (!confirm('Reset everything (menu, tables, orders) back to the demo data?')) return;
   try { await call('/api/admin/reset', { method: 'POST' }); await loadState(); toast('Demo data restored'); }
   catch (err) { toast(err.message, { error: true }); }
+});
+
+// ============ account & team ============
+// Change password. Forced after a temporary password (new account or reset): nothing else
+// in the console works until it is done (the server enforces that too).
+function passwordDialog(forced = false) {
+  $('#login').classList.add('hidden');
+  openDialog(`<h2 class="display">${forced ? 'Choose your password' : 'Change password'}</h2>
+    ${forced ? '<p class="muted">You signed in with a temporary password. Pick your own to continue — at least 10 characters.</p>' : '<p class="muted">At least 10 characters. Other devices will be signed out.</p>'}
+    <label class="field"><span>${forced ? 'Temporary password' : 'Current password'}</span><input class="input" name="current" type="password" autocomplete="current-password" required maxlength="200"></label>
+    <label class="field"><span>New password</span><input class="input" name="next" type="password" autocomplete="new-password" required minlength="10" maxlength="200"></label>
+    <label class="field"><span>Repeat new password</span><input class="input" name="again" type="password" autocomplete="new-password" required minlength="10" maxlength="200"></label>`,
+  async (fd) => {
+    if (fd.get('next') !== fd.get('again')) throw new Error('The new passwords don’t match.');
+    await api('/api/auth/password', { method: 'POST', body: { current: fd.get('current'), next: fd.get('next') } });
+    toast('Password updated');
+    if (me) me.mustChangePassword = false;
+    if (forced) { started ? loadState() : start(); }
+  }, null, { forced, okLabel: forced ? 'Continue' : 'Update password' });
+}
+
+function renderAccount() {
+  $('#accountBox').innerHTML = `<div><strong>${esc(me?.name || '')}</strong> <span class="chip">${esc(me?.role === 'owner' ? 'Owner' : 'Staff')}</span><br><span class="muted">${esc(me?.email || '')}</span></div>
+    <button class="btn btn-sm" type="button" id="pwBtn">Change password</button>`;
+}
+document.addEventListener('click', (e) => { if (e.target.closest('#pwBtn')) passwordDialog(false); });
+
+let team = [];
+async function loadTeam() {
+  if (!isOwner()) return;
+  try { team = await call('/api/admin/team'); renderTeam(); } catch (e) { toast(e.message, { error: true }); }
+}
+function renderTeam() {
+  $('#teamList').innerHTML = team.map((u) => `<div class="team-row" data-id="${esc(u.id)}">
+      <div><strong>${esc(u.name)}</strong>${u.you ? ' <span class="chip">You</span>' : ''}${u.mustChangePassword ? ' <span class="chip">Invite pending</span>' : ''}<br><span class="muted">${esc(u.email)}</span></div>
+      <span class="chip">${u.role === 'owner' ? 'Owner' : 'Staff'}</span>
+      ${u.you ? '<span></span>' : `<div class="team-acts">
+        <button class="btn btn-sm btn-ghost" type="button" data-team="role">${u.role === 'owner' ? 'Make staff' : 'Make owner'}</button>
+        <button class="btn btn-sm btn-ghost" type="button" data-team="reset">Reset password</button>
+        <button class="btn btn-sm btn-ghost btn-icon" type="button" data-team="remove" aria-label="Remove ${esc(u.name)}">🗑</button></div>`}
+    </div>`).join('') || '<p class="muted">Just you so far.</p>';
+}
+// Temporary passwords are shown once, only to the owner who asked for them.
+function showTempPassword(email, pw) {
+  openDialog(`<h2 class="display">Share these sign-in details</h2>
+    <p class="muted">Give them to the person directly. They’ll choose their own password when they first sign in. This password is not shown again.</p>
+    <div class="cred"><span>Sign in at</span><code>${esc(location.origin)}/login</code><span>Email</span><code>${esc(email)}</code><span>Temporary password</span><code class="pw">${esc(pw)}</code></div>`,
+  async () => {}, null, { okLabel: 'Done', noCancel: true });
+}
+$('#teamAdd').addEventListener('click', () => {
+  openDialog(`<h2 class="display">Add a team member</h2>
+    <label class="field"><span>Name</span><input class="input" name="name" maxlength="60" placeholder="e.g. Sam"></label>
+    <label class="field"><span>Email</span><input class="input" name="email" type="email" required maxlength="120"></label>
+    <label class="field"><span>Role</span><select class="input" name="role"><option value="staff">Staff — orders, bills, sold-out switch</option><option value="owner">Owner — everything, incl. menu, settings, team</option></select></label>`,
+  async (fd) => {
+    const out = await call('/api/admin/team', { method: 'POST', body: { name: fd.get('name'), email: fd.get('email'), role: fd.get('role') } });
+    team.push(out.user); renderTeam();
+    setTimeout(() => showTempPassword(out.user.email, out.tempPassword), 0);
+  }, null, { okLabel: 'Add' });
+});
+$('#teamList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-team]');
+  if (!btn) return;
+  const u = team.find((x) => x.id === btn.closest('.team-row').dataset.id);
+  if (!u) return;
+  const id = encodeURIComponent(u.id);
+  try {
+    if (btn.dataset.team === 'remove') {
+      if (!confirm(`Remove ${u.name} (${u.email})? They are signed out immediately.`)) return;
+      await call(`/api/admin/team/${id}`, { method: 'DELETE' });
+      team = team.filter((x) => x.id !== u.id);
+      toast('Removed');
+    } else if (btn.dataset.team === 'reset') {
+      if (!confirm(`Give ${u.name} a new temporary password? Their current sessions end.`)) return;
+      const out = await call(`/api/admin/team/${id}/reset-password`, { method: 'POST' });
+      Object.assign(u, out.user);
+      showTempPassword(u.email, out.tempPassword);
+    } else {
+      const upd = await call(`/api/admin/team/${id}`, { method: 'PATCH', body: { role: u.role === 'owner' ? 'staff' : 'owner' } });
+      Object.assign(u, upd);
+      toast(`${u.name} is now ${u.role === 'owner' ? 'an owner' : 'staff'}`);
+    }
+    renderTeam();
+  } catch (err) { toast(err.message, { error: true }); }
 });

@@ -31,18 +31,6 @@
     <p class="intro">Our dish photographs are real food, shared by photographers under Creative Commons licences and found through Openverse. Thank you to every one of them. Photos are cropped to our 4:5 and 1:1 formats; cropped versions of CC BY-SA photos are shared under the same licence.</p>
     <ul id="list"><li>Loading…</li></ul>
   </div>
-  <script type="module">
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const safe = (u) => (/^https?:\/\//.test(u || '') ? esc(u) : '#');
-    try {
-      const [credits, menu] = await Promise.all([fetch('/img/dishes/credits.json').then((r) => r.json()), fetch('/api/menu').then((r) => r.json())]);
-      const name = (id) => menu.items.find((i) => i.id === id)?.name || id;
-      document.getElementById('list').innerHTML = credits.map((c) => `
-        <li><img src="/img/dishes/${esc(c.id)}-sq.jpg" alt="" loading="lazy" width="72" height="72">
-          <div><b>${esc(name(c.id))}</b>
-            <span>“${esc(c.title || 'Untitled')}” by <a href="${safe(c.creatorUrl)}" rel="noopener">${esc(c.creator || 'unknown')}</a></span>
-            <span><a href="${safe(c.licenseUrl)}" rel="noopener">${esc(c.license)}</a> · <a href="${safe(c.source)}" rel="noopener">source</a></span></div></li>`).join('');
-    } catch { document.getElementById('list').innerHTML = '<li>Credits unavailable.</li>'; }
-  </script>
+  <script type="module" src="/js/credits-page.js"></script>
 </body>
 </html>

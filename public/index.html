@@ -11,7 +11,6 @@
   <link rel="preload" href="/fonts/poppins-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/brand.css">
   <link rel="stylesheet" href="/css/landing.css">
-  <script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.min.js", "three/addons/": "/vendor/three/examples/jsm/" } }</script>
 </head>
 <body>
   <a class="skip" href="#table">Skip to content</a>
@@ -25,8 +24,8 @@
       <a href="#kitchen">For kitchens</a>
     </nav>
     <div class="nav-right">
-      <a class="text-link" href="/admin">Kitchen</a>
-      <a class="pill dark" href="/menu?t=T1">Open the menu</a>
+      <a class="text-link" href="/login">Kitchen</a>
+      <a class="pill dark" href="/menu?t=T1" data-demo="menu?t=T1">Open the menu</a>
     </div>
   </header>
 
@@ -46,7 +45,7 @@
         <div><dt>Tonight’s numbers</dt><dd>Revenue by hour, best sellers and average ticket.</dd></div>
         <div><dt>Runs anywhere</dt><dd>A small Node server, or Vercel with Postgres.</dd></div>
       </dl>
-      <div class="cta"><a class="pill dark" href="/admin">Open the kitchen console</a><a class="pill" href="/print?style=standee">Preview the standees</a></div>
+      <div class="cta"><a class="pill dark" href="/login">Open the kitchen console</a><a class="pill" href="/print?style=standee" data-demo="print?style=standee">Preview the standees</a></div>
     </div>
     <figure class="qr-card">
       <div class="qr-frame"><img id="demoQr" alt="QR code that opens the menu for Table 1" width="220" height="220"></div>
@@ -64,19 +63,19 @@
         <h1 class="display-xl">The menu<br>lives on<br><em>the table.</em></h1>
         <p class="lead">Scan the QR at your table and tonight’s menu opens in your browser as a book you turn with your thumb. No app, no waiting. First — take a walk through our gallery of plates.</p>
         <div class="cta">
-          <a class="pill dark" href="/menu?t=T1">Open the menu book</a>
+          <a class="pill dark" href="/menu?t=T1" data-demo="menu?t=T1">Open the menu book</a>
           <button class="pill" id="startWalk" type="button">Walk the gallery <span aria-hidden="true">→</span></button>
         </div>
       </div>
 
       <div class="g-toggle" role="group" aria-label="View">
-        <span class="on">Gallery</span><a href="/menu?t=T1">Book</a>
+        <span class="on">Gallery</span><a href="/menu?t=T1" data-demo="menu?t=T1">Book</a>
       </div>
 
       <div class="g-caption" id="gCaption" aria-live="polite">
         <span class="mono k">You are walking past</span>
         <b class="cond" id="gTitle">&nbsp;</b>
-        <a class="mono under" id="gEnter" href="/menu?t=T1">Open this chapter →</a>
+        <a class="mono under" id="gEnter" href="/menu?t=T1" data-demo="menu?t=T1">Open this chapter →</a>
       </div>
 
       <div class="g-controls">
@@ -97,7 +96,7 @@
         <p class="desc" id="dDesc"></p>
         <ul class="facts mono" id="dFacts"></ul>
         <div class="d-actions">
-          <a class="pill dark" id="dOpen" href="/menu?t=T1">Find it in the menu book</a>
+          <a class="pill dark" id="dOpen" href="/menu?t=T1" data-demo="menu?t=T1">Find it in the menu book</a>
           <button class="pill" id="dBack" type="button">Step back</button>
         </div>
         <p class="mono fine">Esc or click away to step back</p>
@@ -124,7 +123,7 @@
         <li>Track your order from <em>placed</em> to <em>served</em></li>
         <li>Call for water, cutlery or the bill without waving</li>
       </ul>
-      <a class="pill dark" href="/menu?t=T1">Open the menu book</a>
+      <a class="pill dark" href="/menu?t=T1" data-demo="menu?t=T1">Open the menu book</a>
     </div>
   </section>
 
@@ -148,7 +147,7 @@
         <li>Track your order from <em>placed</em> to <em>served</em></li>
         <li>Call for water, cutlery or the bill without waving</li>
       </ul>
-      <a class="pill dark" href="/menu?t=T1">Open the menu</a>
+      <a class="pill dark" href="/menu?t=T1" data-demo="menu?t=T1">Open the menu</a>
     </div>
   </section>
 
@@ -171,7 +170,7 @@
 
   <footer class="footer">
     <span class="mono" id="footName">Ember &amp; Saffron</span>
-    <nav class="foot-links mono"><a href="/brand">Brand guidelines</a><a href="/credits">Photo credits</a><a href="/admin">Kitchen</a></nav>
+    <nav class="foot-links mono"><a href="/brand">Brand guidelines</a><a href="/credits">Photo credits</a><a href="/login">Kitchen</a></nav>
   </footer>
 
   <script type="module" src="/js/landing.js"></script>

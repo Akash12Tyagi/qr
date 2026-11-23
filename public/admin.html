@@ -13,16 +13,14 @@
   <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
-  <!-- Login -->
-  <section class="login" id="login">
-    <form class="login-card" id="loginForm">
+  <!-- Shown only when the console can't open (wrong restaurant, signed out) -->
+  <section class="login hidden" id="login">
+    <div class="login-card">
       <div class="logo-3d" aria-hidden="true"><span>🔥</span></div>
       <h1 class="display">Kitchen Console</h1>
-      <p class="muted">Enter the staff PIN to manage orders, menu and table QR codes.</p>
-      <input class="input pin" id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••" maxlength="12" required aria-label="Staff PIN">
-      <button class="btn btn-primary" type="submit">Unlock</button>
-      <p class="hint muted">Demo PIN is <code>1234</code> (set <code>ADMIN_PIN</code> env var in production).</p>
-    </form>
+      <p class="muted" id="loginMsg">Checking your sign-in…</p>
+      <a class="btn btn-primary" id="loginLink" href="/login">Go to sign in</a>
+    </div>
   </section>
 
   <div class="shell hidden" id="shell">
@@ -39,7 +37,7 @@
       <div class="side-foot">
         <span class="conn" id="conn"><i></i><span>Connecting…</span></span>
         <button class="btn btn-sm btn-ghost" id="soundBtn" aria-pressed="true">🔔 Sound on</button>
-        <button class="btn btn-sm btn-ghost" id="logoutBtn">Lock</button>
+        <button class="btn btn-sm btn-ghost" id="logoutBtn">Sign out</button>
       </div>
     </aside>
 
@@ -48,7 +46,7 @@
       <section class="panel" id="tab-live">
         <header class="panel-head">
           <div><h1 class="display">Live orders</h1><p class="muted">New orders appear instantly. Tap a card's button to move it forward.</p></div>
-          <div class="head-actions"><a class="btn btn-sm" href="/menu?t=T1" target="_blank" rel="noopener">Open guest view ↗</a></div>
+          <div class="head-actions"><a class="btn btn-sm" id="guestLink" href="#" target="_blank" rel="noopener">Open guest view ↗</a></div>
         </header>
         <div class="calls" id="calls"></div>
         <div class="board" id="board">
@@ -73,8 +71,8 @@
         <header class="panel-head">
           <div><h1 class="display">Menu</h1><p class="muted">Changes go live on every guest’s phone immediately. Toggle a dish off when it sells out.</p></div>
           <div class="head-actions">
-            <button class="btn btn-sm" id="addCatBtn">+ Category</button>
-            <button class="btn btn-sm btn-primary" id="addItemBtn">+ Dish</button>
+            <button class="btn btn-sm owner-only" id="addCatBtn">+ Category</button>
+            <button class="btn btn-sm btn-primary owner-only" id="addItemBtn">+ Dish</button>
           </div>
         </header>
         <div class="menu-search"><input class="input" id="menuSearch" type="search" placeholder="Filter dishes…"></div>
@@ -92,7 +90,7 @@
               <option value="card">Flat card grid</option>
             </select>
             <button class="btn btn-sm" id="printAll">🖨 Print all</button>
-            <button class="btn btn-sm btn-primary" id="addTableBtn">+ Table</button>
+            <button class="btn btn-sm btn-primary owner-only" id="addTableBtn">+ Table</button>
           </div>
         </header>
         <p class="base-note muted" id="baseNote"></p>
@@ -112,8 +110,13 @@
 
       <!-- SETTINGS -->
       <section class="panel hidden" id="tab-settings">
-        <header class="panel-head"><div><h1 class="display">Settings</h1><p class="muted">Your brand on every menu and printed card.</p></div></header>
-        <form class="settings card-box" id="settingsForm">
+        <header class="panel-head"><div><h1 class="display">Settings</h1><p class="muted">Your account, your team, and your brand on every menu and printed card.</p></div></header>
+        <div class="card-box account" id="accountBox"></div>
+        <div class="card-box team owner-only">
+          <div class="team-head"><div><h3>Team</h3><p class="muted">Staff can run orders, bills and the sold-out switch. Owners can also edit the menu, tables, settings and team.</p></div><button class="btn btn-sm btn-primary" type="button" id="teamAdd">+ Add person</button></div>
+          <div id="teamList"></div>
+        </div>
+        <form class="settings card-box owner-only" id="settingsForm">
           <label class="field"><span>Restaurant name</span><input class="input" name="name" maxlength="60" required></label>
           <label class="field"><span>Tagline</span><input class="input" name="tagline" maxlength="120"></label>
           <div class="row3">
@@ -129,7 +132,7 @@
           <label class="field"><span>Public URL for QR codes</span><input class="input" name="publicUrl" type="url" placeholder="https://menu.yourcafe.in  (leave blank to use this server’s address)"></label>
           <div class="settings-actions">
             <button class="btn btn-primary" type="submit">Save changes</button>
-            <button class="btn btn-danger" type="button" id="resetBtn">Reset demo data</button>
+            <button class="btn btn-danger hidden" type="button" id="resetBtn">Reset demo data</button>
           </div>
         </form>
       </section>

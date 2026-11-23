@@ -6,3 +6,4 @@ data/*.tmp
 public/vendor/
 .vercel
 .env*
+data/store/

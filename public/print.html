@@ -13,14 +13,14 @@
 </head>
 <body>
   <div class="ptools no-print">
-    <a class="btn btn-sm btn-ghost" href="/admin#tables">← Back</a>
+    <a class="btn btn-sm btn-ghost" id="backLink" href="/login">← Back</a>
     <div class="seg" role="radiogroup" aria-label="Card style">
       <button role="radio" data-style="standee">Standee A6</button>
       <button role="radio" data-style="tent">Table tent</button>
       <button role="radio" data-style="card">Card grid</button>
     </div>
     <label class="check"><input type="checkbox" id="view3d" checked> 3D preview</label>
-    <button class="btn btn-sm btn-primary" onclick="window.print()">🖨 Print</button>
+    <button class="btn btn-sm btn-primary" type="button" id="printBtn">🖨 Print</button>
   </div>
   <p class="no-print ptip muted">Tip: in the print dialog choose <b>A4</b>, margins <b>None</b>, and enable <b>Background graphics</b>.</p>
   <main id="sheets" class="sheets"></main>

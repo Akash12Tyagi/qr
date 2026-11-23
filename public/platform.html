@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#14110F">
+  <meta name="robots" content="noindex">
+  <title>Platform · Restaurants</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/poppins-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/brand.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <main class="plat hidden" id="app">
+    <header class="plat-top">
+      <div><h1 class="display">Restaurants</h1><p class="muted" id="summary">Every restaurant gets its own menu, QR codes, kitchen console and team.</p></div>
+      <button class="btn btn-sm btn-ghost" type="button" id="logoutBtn">Sign out</button>
+    </header>
+
+    <section class="card-box">
+      <h3>Add a restaurant</h3>
+      <form class="new-form" id="newForm">
+        <div class="row">
+          <label class="field"><span>Restaurant name</span><input class="input" name="name" required maxlength="60" placeholder="e.g. Blue Lotus Café"></label>
+          <label class="field"><span>Web address</span><input class="input" name="slug" maxlength="32" pattern="[a-z0-9](?:[a-z0-9\-]{1,30}[a-z0-9])" placeholder="blue-lotus-cafe (from the name if blank)"></label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Owner email</span><input class="input" name="ownerEmail" type="email" required maxlength="120"></label>
+          <label class="field"><span>Owner name</span><input class="input" name="ownerName" maxlength="60" placeholder="Owner"></label>
+        </div>
+        <label class="check"><input type="checkbox" name="sample"> Start with the sample menu (20 dishes with photos) instead of an empty one</label>
+        <p class="form-err hidden" id="newErr" role="alert"></p>
+        <div><button class="btn btn-primary" type="submit">Create restaurant</button></div>
+      </form>
+    </section>
+
+    <section class="plat-grid" id="tenants" aria-live="polite"></section>
+  </main>
+
+  <dialog class="dlg" id="dlg"><form method="dialog" class="dlg-inner" id="dlgForm"></form></dialog>
+  <script type="module" src="/js/platform.js"></script>
+</body>
+</html>

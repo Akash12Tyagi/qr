@@ -1,9 +1,11 @@
-# 🔥 QR Menu Cards
+# 🔥 QR Menu Cards — multi-restaurant SaaS
 
 Printed table standees with a QR code that open a **live, orderable menu in the phone's browser**. No app to download. Orders go straight to a real-time kitchen console.
 
+**One deployment serves any number of restaurants.** Each restaurant has its own web address (`/r/<restaurant>/…`), menu, tables and QR codes, kitchen console, bills and team — and can never see another restaurant's data. You (the platform owner) add restaurants from `/platform`. Architecture and security design: [`docs/SAAS_ARCHITECTURE.md`](docs/SAAS_ARCHITECTURE.md).
+
 ```
- Table standee (QR: /menu?t=T3) ──scan──▶ Guest menu (browser) ──order──▶ Kitchen console (live)
+ Table standee (QR: /r/blue-lotus/menu?t=T3) ──scan──▶ Guest menu (browser) ──order──▶ That restaurant's kitchen console (live)
                                               ▲                                  │
                                               └───── live status updates ◀───────┘
 ```
@@ -24,7 +26,7 @@ Rules: saffron is a fill or large-type colour (small saffron text on cream uses 
 
 ## Features
 
-**Guest menu** (`/menu?t=T1`) — a modern dine-in list, light by default (dark theme one tap away)
+**Guest menu** (`/r/<restaurant>/menu?t=T1`) — a modern dine-in list, light by default (dark theme one tap away)
 - Photo hero, sticky search + Veg / Chef's picks / Mild filters, category tabs that follow your scroll
 - "Chef's picks" photo carousel with quick add; dish rows with real photos, veg marks, spice and prep time
 - Dish sheet opens on the full photo; cart with per-dish notes, GST/service breakdown and your name
@@ -40,16 +42,21 @@ Rules: saffron is a fill or large-type colour (small saffron text on cream uses 
 
 > The page-turning **menu book** (`public/js/book.js`, `public/css/book.css`) is kept in the repo but switched off — its markup and wiring are commented out in `menu.html` / `menu.js` (see commit 9543a51 to restore).
 
-**Kitchen console** (`/admin`, PIN protected)
+**Kitchen console** (`/r/<restaurant>/admin`, sign in at `/login`)
 - **Bills** tab: every open table bill with received / waiting / left to pay, each payment (who, how much, UPI/card/cash, whole bill / equal share / own dishes) with one-tap *Received* or *Not received*, manual *Settle table*, and today’s settled payments. New payments chime and toast live
 - Live kanban board with chime + flashing new orders, one-tap status, mark paid, cancel
 - Waiter-call alerts
 - Menu manager: add / edit / delete dishes and categories, **sold-out toggle** that updates every phone
 - Tables & QR: generate a QR per table, copy link, download PNG (1200px), print
 - Insights: revenue today, orders, avg ticket, revenue by hour, top dishes
-- Settings: name, tagline, currency, GST %, service %, accent colour, hours, Wi‑Fi, public URL for QR codes
+- Settings: name, tagline, currency, GST %, service %, hours, Wi‑Fi, UPI ID, public URL for QR codes
+- **Team**: owners add staff by email (a temporary password is shown once; they set their own at first sign-in), reset passwords, change roles, remove people (signed out instantly). **Staff** run orders, bills, waiter calls and the sold-out switch; only **owners** edit the menu, tables, settings and team
 
-**Print studio** (`/print`): A6 acrylic standee inserts (4 per A4), fold-over table tents, or 3×3 card grid — with a 3D on-screen preview and high error-correction QR codes carrying your brand badge.
+**Platform console** (`/platform`, platform owner only)
+- Add a restaurant: name, web address, owner email, empty or sample menu → the owner's temporary password is shown once
+- See every restaurant with its owners and team size; suspend / reactivate (suspended menus, ordering and consoles stop; no data is deleted); reset an owner's password; choose which restaurant the home page showcases
+
+**Print studio** (`/r/<restaurant>/print`): A6 acrylic standee inserts (4 per A4), fold-over table tents, or 3×3 card grid — with a 3D on-screen preview and high error-correction QR codes carrying your brand badge.
 
 **Landing page** (`/`) — a walkable 3D gallery (Three.js), in the spirit of a gallery-site rotunda: you stand in a bright, curved room and **scroll or drag to walk round**. Each menu chapter opens with a title card; every dish hangs as a framed photograph with a museum label in a glowing arched niche. Hover shows a "Look closer" pill; click dollies the camera up to the print and opens a detail card ("Find it in the menu book" deep-links to that chapter). Below: the menu-as-a-book, how it works, and the kitchen features with the live QR. Light editorial design on the brand palette; renders only when something moves; static fallback without WebGL.
 
@@ -63,41 +70,61 @@ npm install
 npm start
 ```
 
-Open http://localhost:3000 — the console is at `/admin` (demo PIN **1234**).
+On first start the server creates the first restaurant (**Ember & Saffron**, `/r/ember-saffron/…`) and prints to the terminal, once:
 
-To scan the QR codes from a real phone, open the console using the **Network** address printed in the terminal (same Wi‑Fi), or set **Settings → Public URL** to your deployed domain. QR codes encode that base URL.
+- the restaurant owner's email and a **temporary password** (you choose a new one at first sign-in), and
+- in development, a **platform owner** password (new every start unless you set `PLATFORM_ADMIN_PASSWORD`).
+
+Sign in at http://localhost:3000/login. Owners land in their kitchen console; the platform owner lands in `/platform`, where you add more restaurants. If you ran the earlier single-restaurant version, its data (`data/db.json` or the Postgres `app_state` row) is **copied** into that first restaurant and the original is left untouched; old QR codes (`/menu?t=T3`) keep working.
+
+To scan the QR codes from a real phone, open the console using the **Network** address printed in the terminal (same Wi‑Fi), or set `PUBLIC_URL` / **Settings → Public URL** to your deployed domain.
+
+## Security model
+
+- **No credentials in the browser.** Sign-in sets an `HttpOnly; SameSite=Lax` (and `Secure` on HTTPS) signed session cookie that page scripts cannot read. Nothing is kept in `localStorage`/`sessionStorage`, and no secret is ever put in a URL.
+- **Passwords** are hashed with scrypt; temporary passwords are generated by the server, shown once, and must be replaced at first sign-in (enforced by the API). Changing or resetting a password signs that account out everywhere.
+- **Every request is scoped to one restaurant** by its URL; staff sessions only work for their own restaurant (403 otherwise), and roles are read from the stored account on every request.
+- **CSRF**: every state-changing staff/platform call needs a same-origin custom header and a matching `Origin`; the cookie is `SameSite=Lax`.
+- **Brute force**: sign-in is rate limited per IP and per account, with one generic error message and equal timing for unknown accounts.
+- **Content-Security-Policy** `script-src 'self'` (no inline scripts or handlers anywhere), `frame-ancestors 'none'`, HSTS on HTTPS, `nosniff`, strict referrer policy.
+- The **platform owner** exists only in server environment variables. Prices, taxes, splits and payments are always computed by the server; customer IPs are never returned.
 
 ## Deploy to Vercel (with Neon Postgres)
 
-The app runs unchanged on Vercel: static pages come from `public/` via the CDN and `/api/*` runs as a serverless function (`api/index.js`).
+Static pages come from `public/` via the CDN and `/api/*` runs as a serverless function (`api/index.js`).
 
-- **Storage:** set `DATABASE_URL` (added automatically by the Neon integration: `vercel integration add neon`) and all state lives in one Postgres row, written in row-locked transactions so concurrent orders never clash. Without it, the app uses `data/db.json`.
-- **Live updates:** serverless functions can't hold Server-Sent Events, so on Vercel the kitchen console and order tracker poll every 3–4 s instead (`GET /api/admin/changes?since=…`). Locally you still get instant SSE.
-- `npm run build` copies the three.js files the pages need into `public/vendor/three`.
+- **Storage:** set `DATABASE_URL` (added by the Neon integration: `vercel integration add neon`). Each restaurant is one row in `kv_store`, written in row-locked transactions so concurrent orders never clash. Required on Vercel.
+- **Live updates:** serverless functions can't hold Server-Sent Events, so on Vercel the console and order tracker poll every 3–4 s. Locally you get instant SSE.
+- Set these in the Vercel project before going live: `SESSION_SECRET` (32+ random characters), `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD` (12+ characters), and optionally `OWNER_EMAIL` / `OWNER_PASSWORD` for the first restaurant (otherwise its temporary password is in the function log of the first request; you can also reset it from `/platform`).
 
 ```bash
 vercel deploy --prod
 ```
 
-Set `ADMIN_PIN` in the Vercel project's environment variables before real use.
-
 ## Configuration
 
-| Env var     | Default | Purpose                         |
-|-------------|---------|---------------------------------|
-| `PORT`      | `3000`  | HTTP port                       |
-| `ADMIN_PIN` | `1234`  | Staff PIN for the console & API |
-| `DATABASE_URL` | — | Postgres (Neon) connection string; uses `data/db.json` when unset |
+| Env var | Default | Purpose |
+|---|---|---|
+| `PORT` | `3000` | HTTP port |
+| `DATABASE_URL` | — | Postgres (Neon). Without it, data lives in `data/store/*.json` |
+| `SESSION_SECRET` | derived from `DATABASE_URL`; random in dev | Signs session cookies (≥ 32 chars). Production refuses to start without it or `DATABASE_URL` |
+| `PLATFORM_ADMIN_EMAIL` | `platform@admin.local` | Platform owner sign-in |
+| `PLATFORM_ADMIN_PASSWORD` | random in dev; **console disabled in production if unset** | Platform owner password (≥ 12 chars in production) |
+| `PUBLIC_URL` | request host | Base URL encoded in QR codes (a restaurant's own Public URL setting wins) |
+| `LEGACY_TENANT_SLUG` | `ember-saffron` | Web address of the first restaurant |
+| `OWNER_EMAIL`, `OWNER_PASSWORD` | `owner@<slug>.menu`, generated | First restaurant's owner |
 
-Data lives in `data/db.json` (created from `data/seed.js` on first run; delete it to reset, or use **Settings → Reset demo data**).
+Delete `data/store/` to start over locally.
 
 ## API (summary)
 
-Public: `GET /api/menu`, `GET /api/tables`, `GET /api/tables/:id`, `GET /api/tables/:id/bill`, `POST /api/tables/:id/payments`, `POST /api/orders`, `GET /api/orders/:id`, `GET /api/orders/:id/events` (SSE), `POST /api/calls`, `GET /api/qr/:tableId[?format=png&size=…]`
+Auth: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/password`
 
-Admin (header `x-admin-pin`): `GET /api/admin/state|stats|stream`, `PATCH /api/admin/orders/:id`, `PATCH /api/admin/calls/:id`, `PATCH /api/admin/payments/:id`, `POST /api/admin/tables/:id/settle`, `POST|PUT|DELETE /api/admin/items`, `POST|DELETE /api/admin/categories`, `POST|DELETE /api/admin/tables`, `PUT /api/admin/restaurant`, `POST /api/admin/reset`
+Guest (per restaurant, `/api/r/<slug>`): `GET /menu`, `GET /tables`, `GET /tables/:id`, `GET /tables/:id/bill`, `POST /tables/:id/payments`, `POST /orders`, `GET /orders/:id`, `GET /orders/:id/events` (SSE), `POST /calls`, `GET /qr/:tableId[?format=png&size=…]`
 
-Security notes: order totals are always recomputed on the server from the stored menu (client prices are ignored); sold-out dishes are rejected; inputs are length-limited and sanitised; all user text is HTML-escaped in the UI; customer IPs are never returned; basic per-IP rate limits on ordering and staff calls; PIN compared in constant time.
+Staff console (`/api/r/<slug>/admin`, session cookie + `X-QM-CSRF: 1`): `GET /state|stats|changes|stream`, `PATCH /orders/:id`, `PATCH /calls/:id`, `PATCH /payments/:id`, `POST /tables/:id/settle`, `PATCH /items/:id/availability` — owner only: `POST|PUT|DELETE /items`, `POST|DELETE /categories`, `POST|DELETE /tables`, `PUT /restaurant`, `GET|POST|PATCH|DELETE /team`, `POST /team/:id/reset-password`, `POST /reset` (demo restaurant only)
+
+Platform (`/api/platform`): `GET|POST /tenants`, `PATCH /tenants/:id`, `POST /tenants/:id/reset-owner`, `PUT /default`
 
 ## Tests
 
@@ -105,8 +132,8 @@ Security notes: order totals are always recomputed on the server from the stored
 npm test
 ```
 
-Covers pages & assets, QR generation, the order flow, validation, sold-out handling, admin CRUD, waiter calls, and the live SSE stream.
+Covers restaurant isolation (menus, orders, consoles), roles, sign-in and cookie flags, CSRF, forged/foreign-key sessions, forced password change, suspension, owner resets, team management, login and order rate limits, first-boot migration, CSP-safe pages, QR codes, the order flow, bills and split payments, and the live SSE / polling feeds.
 
 ## Stack
 
-Node 18+ · Express · `qrcode` · Three.js (served locally, no CDN) · vanilla ES modules (no build step) · JSON-file store with atomic writes (swap `src/db.js` for a database when you scale).
+Node 18+ · Express · `qrcode` · Three.js (served locally, no CDN) · vanilla ES modules (no build step) · Postgres or JSON-file key/value store with per-key locking (`src/store.js`).

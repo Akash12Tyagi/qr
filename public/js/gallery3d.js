@@ -4,7 +4,7 @@
 // Each menu chapter opens with a title card, followed by its dishes as illustrated prints
 // with museum labels, set in glowing arched niches. Progress (in "exhibits") is driven by
 // the page scroll / drag / arrows from landing.js; clicking a print dollies in to look closer.
-import * as THREE from 'three';
+import * as THREE from '/vendor/three/build/three.module.min.js';
 import { drawPoster } from './dishart.js';
 
 const R = 16;            // wall radius

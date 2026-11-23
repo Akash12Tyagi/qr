@@ -218,14 +218,6 @@
 
     <footer><span class="wordmark">Ember <span class="amp">&amp;</span> Saffron</span><span class="label" style="color:var(--stone)">Saffron #F4A51C · Ink #14110F · Poppins · Geist</span></footer>
   </div>
-  <script type="module">
-    try {
-      const { items } = await (await fetch('/api/menu')).json();
-      const pick = ['i5', 'i12', 'i1', 'i15', 'i3', 'i17', 'i9', 'i19'];
-      const list = pick.map((id) => items.find((i) => i.id === id)).filter((i) => i && i.image);
-      const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-      document.getElementById('photos').innerHTML = list.map((i) => `<figure><img src="${esc(i.image)}" alt="${esc(i.name)}" loading="lazy" decoding="async" width="400" height="500"><figcaption>${esc(i.name)}</figcaption></figure>`).join('');
-    } catch { /* photos are illustrative only */ }
-  </script>
+  <script type="module" src="/js/brand-page.js"></script>
 </body>
 </html>
