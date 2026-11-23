@@ -26,6 +26,11 @@ Rules: saffron is a fill or large-type colour (small saffron text on cream uses 
 
 ## Features
 
+**Restaurant home page** (`/r/<restaurant>`) — the link you give each restaurant
+- Its name, tagline, opening hours (with an open-now dot), guests' favourites with photos, menu chapters, how ordering works, and visit details (hours, Wi‑Fi, payment)
+- **The restaurant's own QR code**: scanning it with a phone opens that restaurant's menu (`/r/<restaurant>/menu`). Table QR codes still open the menu for that table, so orders are tagged with it
+- On phones a fixed "Open the menu" button keeps the menu one tap away
+
 **Guest menu** (`/r/<restaurant>/menu?t=T1`) — a modern dine-in list, light by default (dark theme one tap away)
 - Photo hero, sticky search + Veg / Chef's picks / Mild filters, category tabs that follow your scroll
 - "Chef's picks" photo carousel with quick add; dish rows with real photos, veg marks, spice and prep time
@@ -118,9 +123,11 @@ Delete `data/store/` to start over locally.
 
 ## API (summary)
 
+Pages: `/r/<slug>` (restaurant home with its QR), `/r/<slug>/menu`, `/r/<slug>/admin`, `/r/<slug>/print`, `/login`, `/platform`
+
 Auth: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/password`
 
-Guest (per restaurant, `/api/r/<slug>`): `GET /menu`, `GET /tables`, `GET /tables/:id`, `GET /tables/:id/bill`, `POST /tables/:id/payments`, `POST /orders`, `GET /orders/:id`, `GET /orders/:id/events` (SSE), `POST /calls`, `GET /qr/:tableId[?format=png&size=…]`
+Guest (per restaurant, `/api/r/<slug>`): `GET /menu`, `GET /tables`, `GET /tables/:id`, `GET /tables/:id/bill`, `POST /tables/:id/payments`, `POST /orders`, `GET /orders/:id`, `GET /orders/:id/events` (SSE), `POST /calls`, `GET /qr` (restaurant QR → menu), `GET /qr/:tableId[?format=png&size=…]`
 
 Staff console (`/api/r/<slug>/admin`, session cookie + `X-QM-CSRF: 1`): `GET /state|stats|changes|stream`, `PATCH /orders/:id`, `PATCH /calls/:id`, `PATCH /payments/:id`, `POST /tables/:id/settle`, `PATCH /items/:id/availability` — owner only: `POST|PUT|DELETE /items`, `POST|DELETE /categories`, `POST|DELETE /tables`, `PUT /restaurant`, `GET|POST|PATCH|DELETE /team`, `POST /team/:id/reset-password`, `POST /reset` (demo restaurant only)
 

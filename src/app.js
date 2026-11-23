@@ -676,27 +676,36 @@ function createApp(options = {}) {
     res.status(201).json({ payment: publicPayment(payment), bill });
   }));
 
-  // QR code for a table (SVG by default, ?format=png for a download-ready image)
-  tenantApi.get('/qr/:tableId', h(async (req, res) => {
-    const id = req.params.tableId.replace(/\.(svg|png)$/i, '');
-    const d = await db(req);
-    const table = d.tables.find((t) => t.id === id);
-    if (!table) throw new HttpError(404, 'Unknown table');
+  // QR codes (SVG by default, ?format=png for a download-ready image).
+  //   /qr            → the restaurant's menu (for its home page, posters, the entrance)
+  //   /qr/:tableId   → that table's menu (orders are tagged with the table)
+  async function sendQr(req, res, url, name) {
     const opts = {
       errorCorrectionLevel: 'H', // high: survives the logo badge we overlay on print cards
       margin: int(req.query.margin, 0, 8, 1),
       color: { dark: hexColor(req.query.dark, '#111111'), light: hexColor(req.query.light, '#ffffff') },
     };
-    const url = tableUrl(req, d, req.tenant, table.id);
-    const wantsPng = req.query.format === 'png' || /\.png$/i.test(req.params.tableId);
     res.setHeader('Cache-Control', 'private, max-age=300');
-    if (wantsPng) {
+    if (req.query.format === 'png' || /\.png$/i.test(req.path)) {
       const buf = await QRCode.toBuffer(url, { ...opts, width: int(req.query.size, 128, 2048, 1024) });
       res.type('png');
-      if (req.query.download) res.attachment(`qr-${req.tenant.slug}-${table.id}.png`);
+      if (req.query.download) res.attachment(`qr-${req.tenant.slug}${name ? `-${name}` : ''}.png`);
       return res.send(buf);
     }
     res.type('image/svg+xml').send(await QRCode.toString(url, { ...opts, type: 'svg' }));
+  }
+
+  tenantApi.get(['/qr', '/qr.png', '/qr.svg'], h(async (req, res) => {
+    const d = await db(req);
+    await sendQr(req, res, `${baseUrl(req, d)}/r/${req.tenant.slug}/menu`, '');
+  }));
+
+  tenantApi.get('/qr/:tableId', h(async (req, res) => {
+    const id = req.params.tableId.replace(/\.(svg|png)$/i, '');
+    const d = await db(req);
+    const table = d.tables.find((t) => t.id === id);
+    if (!table) throw new HttpError(404, 'Unknown table');
+    await sendQr(req, res, tableUrl(req, d, req.tenant, table.id), table.id);
   }));
 
   // ======================= STAFF CONSOLE ROUTES =======================
@@ -734,6 +743,7 @@ function createApp(options = {}) {
       categories: d.categories,
       items: d.items,
       tables: d.tables.map((t) => ({ ...t, url: tableUrl(req, d, req.tenant, t.id) })),
+      homeUrl: `${baseUrl(req, d)}/r/${req.tenant.slug}`,
       orders: d.orders.slice(-300).map(publicOrder),
       calls: d.calls.filter((c) => !c.resolved),
       // open payments plus the last day's settled ones (for the Bills history)
@@ -1076,7 +1086,7 @@ function createApp(options = {}) {
     res.redirect(302, build(t.slug, req));
   });
 
-  // Restaurant pages: /r/<slug>/menu, /r/<slug>/admin, /r/<slug>/print
+  // Restaurant pages: /r/<slug> (home), /r/<slug>/menu, /r/<slug>/admin, /r/<slug>/print
   const tenantPage = (file) => h(async (req, res, next) => {
     if (!sec.validSlug(req.params.slug)) return next();
     await ready();
@@ -1084,7 +1094,8 @@ function createApp(options = {}) {
     if (!p.tenants.some((t) => t.slug === req.params.slug)) return next();
     res.sendFile(page(file));
   });
-  app.get('/r/:slug', (req, res, next) => (sec.validSlug(req.params.slug) ? res.redirect(302, `/r/${req.params.slug}/menu${queryOf(req)}`) : next()));
+  app.get('/r/:slug', tenantPage('home.html'));          // the restaurant's own home page
+  app.get('/r/:slug/home', (req, res) => res.redirect(301, `/r/${req.params.slug}`));
   app.get('/r/:slug/menu', tenantPage('menu.html'));
   app.get('/r/:slug/admin', tenantPage('admin.html'));
   app.get('/r/:slug/print', tenantPage('print.html'));

@@ -76,6 +76,7 @@ async function loadState() {
     document.body.dataset.role = me.role;
     $('#sideName').textContent = state.restaurant.name;
     $('#guestLink').href = `/r/${SLUG}/menu?t=${encodeURIComponent(state.tables[0]?.id || 'T1')}`;
+    $('#homeLink').href = `/r/${SLUG}`;
     $('#resetBtn').classList.toggle('hidden', !state.tenant.demo);
     document.title = `${state.restaurant.name} · Kitchen Console`;
     renderAll();
@@ -521,7 +522,7 @@ function openDialog(inner, onSubmit, onMount, { forced = false, okLabel = 'Save'
 function renderTables() {
   const base = state.baseUrl;
   const local = /localhost|127\.0\.0\.1|\[::1\]/.test(base);
-  $('#baseNote').innerHTML = `QR codes point to <code>${esc(base)}</code>.${local ? ' ⚠️ <strong>localhost</strong> won’t open on guests’ phones — open this console via your network IP or set a Public URL in Settings.' : ''}`;
+  $('#baseNote').innerHTML = `Your restaurant page: <a href="/r/${SLUG}" target="_blank" rel="noopener"><code>${esc(state.homeUrl || '')}</code></a> (it shows a QR code that opens your menu). Table QR codes point to <code>${esc(base)}</code>.${local ? ' ⚠️ <strong>localhost</strong> won’t open on guests’ phones — open this console via your network IP or set a Public URL in Settings.' : ''}`;
   const v = Date.now();
   $('#tablesGrid').innerHTML = state.tables.map((t) => `
     <article class="tcard" data-id="${esc(t.id)}">

@@ -69,7 +69,7 @@ test.after(() => S.close());
 
 // ------------------------------------------------------------------ pages & security headers
 test('pages, legacy links and security headers', async () => {
-  for (const p of ['/', '/login', '/platform', `/r/${SLUG}/menu`, `/r/${SLUG}/admin`, `/r/${SLUG}/print`, '/brand', '/credits',
+  for (const p of ['/', '/login', '/platform', `/r/${SLUG}`, `/r/${SLUG}/menu`, `/r/${SLUG}/admin`, `/r/${SLUG}/print`, '/brand', '/credits',
     '/vendor/three/build/three.module.min.js', '/js/theme-boot.js']) {
     const r = await guest(p);
     assert.equal(r.status, 200, p);
@@ -131,8 +131,18 @@ test('QR codes encode the restaurant + table URL (svg + png)', async () => {
   assert.equal(png.status, 200);
   assert.equal(Buffer.from(await png.arrayBuffer()).subarray(1, 4).toString(), 'PNG');
   assert.equal((await guest(api('/qr/NOPE'))).status, 404);
+  // the restaurant's own QR (shown on its home page) opens the menu without a table
+  const home = await guest(api('/qr'));
+  assert.equal(home.status, 200);
+  assert.match(home.text, /<svg/);
+  assert.notEqual(home.text, svg.text, 'differs from a table QR');
+  const homePng = await fetch(`${S.base}${api('/qr')}?format=png&size=256`);
+  assert.equal(Buffer.from(await homePng.arrayBuffer()).subarray(1, 4).toString(), 'PNG');
+  assert.match((await guest(`/r/${SLUG}`)).text, /home\.js/, '/r/<slug> is the restaurant home page');
+  assert.equal((await guest('/r/not-a-place')).status, 404);
   const st = await owner(adm('/state'));
   assert.equal(st.json.tables[0].url, `${S.base}/r/${SLUG}/menu?t=T1`);
+  assert.equal(st.json.homeUrl, `${S.base}/r/${SLUG}`);
 });
 
 test('order flow: prices computed on server, status updates, tracking', async () => {

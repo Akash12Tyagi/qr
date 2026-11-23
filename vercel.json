@@ -11,6 +11,10 @@
       "destination": "/api"
     },
     {
+      "source": "/r/:slug",
+      "destination": "/home.html"
+    },
+    {
       "source": "/r/:slug/menu",
       "destination": "/menu.html"
     },
@@ -31,11 +35,6 @@
     {
       "source": "/admin",
       "destination": "/login",
-      "permanent": false
-    },
-    {
-      "source": "/r/:slug",
-      "destination": "/r/:slug/menu",
       "permanent": false
     }
   ],

@@ -32,7 +32,7 @@ function render() {
       <div>
         <h3>${esc(t.name)} ${t.status !== 'active' ? '<span class="chip warn">Suspended</span>' : ''} ${t.slug === data.defaultSlug ? '<span class="chip">Home page demo</span>' : ''}</h3>
         <div class="muted">/${esc(t.slug)} · owner ${esc(t.owners.join(', ') || '—')} · ${esc(t.staff)} staff · since ${esc(new Date(t.createdAt).toLocaleDateString())}</div>
-        <div class="links"><a href="/r/${esc(t.slug)}/menu?t=T1" target="_blank" rel="noopener">Guest menu ↗</a><a href="/r/${esc(t.slug)}/print" target="_blank" rel="noopener">Print QR cards ↗</a></div>
+        <div class="links"><a href="/r/${esc(t.slug)}" target="_blank" rel="noopener">Restaurant page ↗</a><a href="/r/${esc(t.slug)}/menu" target="_blank" rel="noopener">Menu ↗</a><a href="/r/${esc(t.slug)}/print" target="_blank" rel="noopener">Print QR cards ↗</a></div>
       </div>
       <div class="acts">
         <button class="btn btn-sm btn-ghost" type="button" data-act="reset">Reset owner password</button>
@@ -93,7 +93,7 @@ function showCreds(name, slug, email, pw) {
   const form = $('#dlgForm');
   form.innerHTML = `<h2 class="display">${esc(name)}: owner sign-in</h2>
     <p class="muted">Send these to the owner privately. They’ll choose their own password at first sign-in. This password is not shown again.</p>
-    <div class="cred"><span>Sign in at</span><code>${esc(location.origin)}/login</code><span>Email</span><code>${esc(email)}</code><span>Temporary password</span><code class="pw">${esc(pw)}</code><span>Guest menu</span><code>${esc(location.origin)}/r/${esc(slug)}/menu</code></div>
+    <div class="cred"><span>Sign in at</span><code>${esc(location.origin)}/login</code><span>Email</span><code>${esc(email)}</code><span>Temporary password</span><code class="pw">${esc(pw)}</code><span>Restaurant page</span><code>${esc(location.origin)}/r/${esc(slug)}</code></div>
     <div class="dlg-actions"><button class="btn btn-primary" value="ok">Done</button></div>`;
   $('#dlg').showModal();
 }

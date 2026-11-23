@@ -9,7 +9,7 @@ can never see another restaurant's data.
 | Concept | Shape |
 |---|---|
 | Tenant | `{ id: "tn_…", slug, name, status: active \| suspended, plan, createdAt }` |
-| Tenant URL | `/r/<slug>/menu?t=T1` (guests) · `/r/<slug>/admin` (staff) · `/r/<slug>/print` |
+| Tenant URL | `/r/<slug>` (restaurant home page with its own QR → menu) · `/r/<slug>/menu?t=T1` (guests) · `/r/<slug>/admin` (staff) · `/r/<slug>/print` |
 | Tenant API | `/api/r/<slug>/…` (public) and `/api/r/<slug>/admin/…` (staff, authenticated) |
 | Platform | `/platform` console + `/api/platform/…` (platform owner only) |
 | Auth | `/login`, `/api/auth/login · logout · me · password` |

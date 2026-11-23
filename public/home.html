@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F7F3EA">
+  <title>Welcome</title>
+  <meta name="description" content="Our menu, opening hours and how to order from your table — scan the QR code to open the menu on your phone.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/poppins-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/brand.css">
+  <link rel="stylesheet" href="/css/home.css">
+</head>
+<body>
+  <header class="h-nav">
+    <a class="h-brand" href="#top"><img src="/logo-mark.svg" width="32" height="32" alt=""><span class="wordmark" id="navName">&nbsp;</span></a>
+    <nav class="h-links" aria-label="Sections"><a href="#picks">Favourites</a><a href="#menu">Menu</a><a href="#visit">Visit</a></nav>
+    <a class="h-btn solid" id="navMenu" href="#">Open the menu</a>
+  </header>
+
+  <main id="top">
+    <!-- HERO: name + the restaurant's own QR code -->
+    <section class="h-hero">
+      <div class="h-copy">
+        <p class="label h-kicker" id="kicker">Welcome</p>
+        <h1 class="h-title" id="title">&nbsp;</h1>
+        <p class="h-tag" id="tagline"></p>
+        <div class="h-meta" id="meta"></div>
+        <div class="h-cta">
+          <a class="h-btn solid big" id="heroMenu" href="#">See the menu &amp; order</a>
+          <a class="h-btn" href="#picks">Today’s favourites</a>
+        </div>
+      </div>
+
+      <figure class="h-qr" aria-labelledby="qrCap">
+        <div class="h-qr-card">
+          <p class="label">Scan with your phone camera</p>
+          <div class="h-qr-img"><img id="qr" width="240" height="240" alt="QR code that opens our menu"><span class="h-qr-badge" aria-hidden="true"><img src="/logo-mark.svg" width="34" height="34" alt=""></span></div>
+          <figcaption id="qrCap"><strong>The menu opens on your phone</strong><span>No app needed. At a table? Scan the code on your table so your order comes straight to it.</span></figcaption>
+          <a class="h-link mono" id="qrUrl" href="#"></a>
+        </div>
+      </figure>
+    </section>
+
+    <!-- FAVOURITES -->
+    <section class="h-sec" id="picks" hidden>
+      <div class="h-head"><p class="label">From the kitchen</p><h2>Guests’ favourites</h2></div>
+      <div class="h-picks" id="pickList"></div>
+    </section>
+
+    <!-- MENU CHAPTERS -->
+    <section class="h-sec" id="menu" hidden>
+      <div class="h-head"><p class="label">On the menu</p><h2 id="menuHead">Something for every appetite</h2></div>
+      <div class="h-cats" id="catList"></div>
+    </section>
+
+    <!-- HOW -->
+    <section class="h-sec h-how">
+      <div class="h-head"><p class="label">At the table</p><h2>Order without waiting</h2></div>
+      <ol class="h-steps">
+        <li><b>Scan</b><span>Point your camera at the QR code on your table.</span></li>
+        <li><b>Order</b><span>Browse with photos, add notes, and send it to the kitchen.</span></li>
+        <li><b>Follow</b><span>Watch it go from accepted to cooking to ready, live.</span></li>
+        <li><b>Pay</b><span>Pay the whole bill, split it equally, or just your own dishes.</span></li>
+      </ol>
+    </section>
+
+    <!-- VISIT -->
+    <section class="h-sec h-visit" id="visit">
+      <div class="h-head"><p class="label">Visit</p><h2 id="visitName">&nbsp;</h2></div>
+      <dl class="h-facts" id="facts"></dl>
+    </section>
+  </main>
+
+  <footer class="h-foot">
+    <span class="wordmark" id="footName">&nbsp;</span>
+    <nav><a id="footMenu" href="#">Menu</a><a href="/login">Staff sign in</a></nav>
+  </footer>
+
+  <!-- phones: the menu is one tap away -->
+  <a class="h-dock" id="dockMenu" href="#">Open the menu <span aria-hidden="true">→</span></a>
+
+  <div class="h-error" id="error" hidden><h1>This page isn’t available</h1><p id="errorMsg"></p><a class="h-btn solid" href="/">Go to the home page</a></div>
+
+  <script type="module" src="/js/home.js"></script>
+</body>
+</html>
