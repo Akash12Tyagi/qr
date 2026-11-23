@@ -30,6 +30,7 @@ Rules: saffron is a fill or large-type colour (small saffron text on cream uses 
 - Its name, tagline, opening hours (with an open-now dot), guests' favourites with photos, menu chapters, how ordering works, and visit details (hours, Wi‑Fi, payment)
 - **The restaurant's own QR code**: scanning it with a phone opens that restaurant's menu (`/r/<restaurant>/menu`). Table QR codes still open the menu for that table, so orders are tagged with it
 - On phones a fixed "Open the menu" button keeps the menu one tap away
+- **Home page first**: a plain `/r/<restaurant>/menu` link redirects to `/r/<restaurant>`. The menu opens directly only from the restaurant QR (`?src=qr`), a table QR (`?t=T3`), a home-page button (`?src=home`) or a menu-section link (`?ch=…`)
 
 **Guest menu** (`/r/<restaurant>/menu?t=T1`) — a modern dine-in list, light by default (dark theme one tap away)
 - Photo hero, sticky search + Veg / Chef's picks / Mild filters, category tabs that follow your scroll

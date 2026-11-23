@@ -32,7 +32,7 @@ function render() {
       <div>
         <h3>${esc(t.name)} ${t.status !== 'active' ? '<span class="chip warn">Suspended</span>' : ''} ${t.slug === data.defaultSlug ? '<span class="chip">Home page demo</span>' : ''}</h3>
         <div class="muted">/${esc(t.slug)} · owner ${esc(t.owners.join(', ') || '—')} · ${esc(t.staff)} staff · since ${esc(new Date(t.createdAt).toLocaleDateString())}</div>
-        <div class="links"><a href="/r/${esc(t.slug)}" target="_blank" rel="noopener">Restaurant page ↗</a><a href="/r/${esc(t.slug)}/menu" target="_blank" rel="noopener">Menu ↗</a><a href="/r/${esc(t.slug)}/print" target="_blank" rel="noopener">Print QR cards ↗</a></div>
+        <div class="links"><a href="/r/${esc(t.slug)}" target="_blank" rel="noopener">Restaurant page ↗</a><a href="/r/${esc(t.slug)}/print" target="_blank" rel="noopener">Print QR cards ↗</a></div>
       </div>
       <div class="acts">
         <button class="btn btn-sm btn-ghost" type="button" data-act="reset">Reset owner password</button>

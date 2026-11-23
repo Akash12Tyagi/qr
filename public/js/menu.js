@@ -21,7 +21,12 @@ const byId = (id) => menu.items.find((i) => i.id === id);
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // ============================================================ boot
-if (!SLUG) {
+// The restaurant's home page is the front door: a bare /r/<slug>/menu link (no table,
+// section or source) goes there first. QR codes and home-page buttons carry ?t= / ?src=.
+const isEntryLink = !params.has('t') && !params.has('ch') && !params.has('src');
+if (SLUG && isEntryLink) {
+  location.replace(`/r/${SLUG}`);
+} else if (!SLUG) {
   // Old printed QR codes (/menu?t=T3) open the default restaurant.
   api('/api/default-tenant')
     .then((t) => location.replace(`/r/${t.slug}/menu${location.search}`))

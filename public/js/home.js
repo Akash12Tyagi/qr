@@ -4,7 +4,8 @@ import { $, esc, api, fmtMoney, tenantSlug, tenantApi, thumbOf } from './common.
 
 const SLUG = tenantSlug();
 const API = tenantApi(SLUG);
-const menuUrl = (q = '') => `/r/${SLUG}/menu${q}`;
+// Links into the menu always say where they came from (a bare menu link redirects here).
+const menuUrl = (q = '?src=home') => `/r/${SLUG}/menu${q}`;
 
 init().catch((e) => {
   document.querySelector('main').hidden = true;
@@ -35,9 +36,9 @@ async function init() {
   $('#meta').innerHTML = meta.join('');
 
   // The restaurant's own QR: always the server's address for this restaurant's menu.
-  const absolute = `${location.origin}${menuUrl()}`;
+  const absolute = `${location.origin}/r/${SLUG}/menu`;
   $('#qr').src = `${API}/qr?margin=1&dark=%2314110F`;
-  $('#qrUrl').href = menuUrl();
+  $('#qrUrl').href = menuUrl('?src=qr');
   $('#qrUrl').textContent = absolute.replace(/^https?:\/\//, '');
 
   // favourites: chef's picks with photos first

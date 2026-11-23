@@ -69,7 +69,7 @@ test.after(() => S.close());
 
 // ------------------------------------------------------------------ pages & security headers
 test('pages, legacy links and security headers', async () => {
-  for (const p of ['/', '/login', '/platform', `/r/${SLUG}`, `/r/${SLUG}/menu`, `/r/${SLUG}/admin`, `/r/${SLUG}/print`, '/brand', '/credits',
+  for (const p of ['/', '/login', '/platform', `/r/${SLUG}`, `/r/${SLUG}/menu?t=T1`, `/r/${SLUG}/admin`, `/r/${SLUG}/print`, '/brand', '/credits',
     '/vendor/three/build/three.module.min.js', '/js/theme-boot.js']) {
     const r = await guest(p);
     assert.equal(r.status, 200, p);
@@ -140,6 +140,13 @@ test('QR codes encode the restaurant + table URL (svg + png)', async () => {
   assert.equal(Buffer.from(await homePng.arrayBuffer()).subarray(1, 4).toString(), 'PNG');
   assert.match((await guest(`/r/${SLUG}`)).text, /home\.js/, '/r/<slug> is the restaurant home page');
   assert.equal((await guest('/r/not-a-place')).status, 404);
+  // home page first: a bare menu link lands on the restaurant's home page
+  const bare = await guest(`/r/${SLUG}/menu`, { raw: true });
+  assert.equal(bare.status, 302);
+  assert.equal(bare.headers.get('location'), `/r/${SLUG}`);
+  for (const q of ['?t=T1', '?src=qr', '?src=home', '?ch=mains']) assert.equal((await guest(`/r/${SLUG}/menu${q}`)).status, 200, q);
+  const qrWant = await require('qrcode').toString(`${S.base}/r/${SLUG}/menu?src=qr`, { errorCorrectionLevel: 'H', margin: 1, color: { dark: '#111111', light: '#ffffff' }, type: 'svg' });
+  assert.equal((await guest(api('/qr?margin=1'))).text, qrWant, 'restaurant QR opens the menu');
   const st = await owner(adm('/state'));
   assert.equal(st.json.tables[0].url, `${S.base}/r/${SLUG}/menu?t=T1`);
   assert.equal(st.json.homeUrl, `${S.base}/r/${SLUG}`);

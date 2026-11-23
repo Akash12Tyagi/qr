@@ -697,7 +697,7 @@ function createApp(options = {}) {
 
   tenantApi.get(['/qr', '/qr.png', '/qr.svg'], h(async (req, res) => {
     const d = await db(req);
-    await sendQr(req, res, `${baseUrl(req, d)}/r/${req.tenant.slug}/menu`, '');
+    await sendQr(req, res, `${baseUrl(req, d)}/r/${req.tenant.slug}/menu?src=qr`, '');
   }));
 
   tenantApi.get('/qr/:tableId', h(async (req, res) => {
@@ -1087,16 +1087,24 @@ function createApp(options = {}) {
   });
 
   // Restaurant pages: /r/<slug> (home), /r/<slug>/menu, /r/<slug>/admin, /r/<slug>/print
-  const tenantPage = (file) => h(async (req, res, next) => {
+  const tenantPage = (file, redirectTo) => h(async (req, res, next) => {
     if (!sec.validSlug(req.params.slug)) return next();
     await ready();
     const p = await platformDoc();
     if (!p.tenants.some((t) => t.slug === req.params.slug)) return next();
+    const to = redirectTo && redirectTo(req);
+    if (to) return res.redirect(302, to);
     res.sendFile(page(file));
   });
   app.get('/r/:slug', tenantPage('home.html'));          // the restaurant's own home page
   app.get('/r/:slug/home', (req, res) => res.redirect(301, `/r/${req.params.slug}`));
-  app.get('/r/:slug/menu', tenantPage('menu.html'));
+  // The home page is the front door. The menu opens directly only from a QR scan or a
+  // link that says where it came from: a table (?t=), a menu section (?ch=) or ?src=.
+  // A bare /r/<slug>/menu link goes to the restaurant's home page first.
+  app.get('/r/:slug/menu', tenantPage('menu.html', (req) => {
+    const q = req.query;
+    return q.t === undefined && q.ch === undefined && q.src === undefined ? `/r/${req.params.slug}` : null;
+  }));
   app.get('/r/:slug/admin', tenantPage('admin.html'));
   app.get('/r/:slug/print', tenantPage('print.html'));
 

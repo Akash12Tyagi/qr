@@ -36,6 +36,25 @@
       "source": "/admin",
       "destination": "/login",
       "permanent": false
+    },
+    {
+      "source": "/r/:slug/menu",
+      "missing": [
+        {
+          "type": "query",
+          "key": "t"
+        },
+        {
+          "type": "query",
+          "key": "ch"
+        },
+        {
+          "type": "query",
+          "key": "src"
+        }
+      ],
+      "destination": "/r/:slug",
+      "permanent": false
     }
   ],
   "headers": [
